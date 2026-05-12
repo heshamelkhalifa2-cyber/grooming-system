@@ -1085,7 +1085,7 @@ function renderCommissions(){
         <span style="font-size:12px">${wRev.toFixed(3)} KD — <b style="color:var(--teal-dark)">comm: ${(wRev*COMM).toFixed(3)} KD</b></span>
       </div>`;
     }).join('');
-    return`<div class="card" onclick="openClientModal('${ph}')" style="cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#E8F5EE'" onmouseout="this.style.background='#fff'">
+    return`<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:8px">
           <div class="rank-circle">${rank+1}</div>
