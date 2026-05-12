@@ -222,23 +222,31 @@ body.rtl th,body.rtl td{text-align:right}
     </div>
     <div id="client-hint" class="client-hint"></div>
     <label>Visit Type</label>
-    <select id="f-visit" style="margin-bottom:14px"><option value="Visit">Visit</option><option value="Delivery">Delivery</option></select>
+    <select id="f-visit" style="margin-bottom:14px" onchange="onVisitChange()">
+      <option value="Visit">Visit</option>
+      <option value="Delivery">Delivery</option>
+    </select>
+    <div id="delivery-charge-row" style="display:none;margin-top:-8px;margin-bottom:14px">
+      <label>Delivery Charge (KD)</label>
+      <input type="number" id="f-delivery" min="0" step="0.001" value="0" placeholder="e.g. 2.000" oninput="calcTotal()" style="margin-bottom:0">
+    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <label style="margin-bottom:0">Services & Pets *</label>
       <button onclick="addSvcLine()" style="background:var(--teal);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">+ Add Service</button>
     </div>
     <div id="svc-lines"></div>
     <div id="session-total" style="background:var(--navy);color:#fff;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:none">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Total Revenue</span><span id="st-rev">0.000 KD</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Services Revenue</span><span id="st-rev">0.000 KD</span></div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Free Units</span><span id="st-free" style="color:#F39C12">0</span></div>
       <div id="st-disc-row" style="display:none;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Discount</span><span id="st-disc" style="color:#F39C12">0.000 KD</span></div>
+      <div id="st-deliv-row" style="display:none;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>🚗 Delivery Charge</span><span id="st-deliv" style="color:#A9DFBF">0.000 KD</span></div>
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px"><span>Total Charged</span><span id="st-charged" style="color:#A9DFBF">0.000 KD</span></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
         <label>Discount %</label>
-        <input type="number" id="f-discount" min="0" max="20" value="0" placeholder="0-20%" oninput="onDiscountInput()" style="margin-bottom:8px">
-        <div id="disc-warn" style="font-size:11px;color:#8B6914;display:none;margin-bottom:8px">⚠️ Max 20%</div>
+        <input type="number" id="f-discount" min="0" max="100" value="0" placeholder="0-100%" oninput="onDiscountInput()" style="margin-bottom:8px">
+        <div id="disc-warn" style="font-size:11px;color:#8B6914;display:none;margin-bottom:8px">⚠️ Max 100%</div>
       </div>
       <div>
         <label>Discount Amount</label>
@@ -379,7 +387,7 @@ const SB_URL='https://zyjxsrwbfujnkniwwias.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5anhzcndiZnVqbmtuaXd3aWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjQzMTksImV4cCI6MjA5NDE0MDMxOX0.FDyCwHPtdbE1Ryjk3R8hT6L0LgqNi7-RGqihGSe6wzI';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-const SVCS={"Full Service":12.5,"Basic Shower":8.5,"Trimming Package":8.5,"Dry Shower - Kitten":4.0,"Dry Shower - Adult Cat":6.0,"Trimming Only":6.0,"Anal Gland Cleaning":4.0,"Cleaning Eyes/Ears":2.0,"Remove Hair Balls":2.0,"Teeth Brush":1.5,"Bottom Shaving Area":3.0,"Deshedding":2.0,"Trimming Paws":2.0,"Full Service - Small Dog":12.0,"Full Service - Medium Dog":13.0,"Full Service - Large Dog":15.0,"Full Service - XL Dog":17.0,"Basic Shower - Small Dog":8.0,"Basic Shower - Medium Dog":9.0,"Basic Shower - Large Dog":10.0,"Basic Shower - XL Dog":12.0,"Nail Trimming":2.0};
+const SVCS={"Full Service":12.5,"Full Service 2nd":12.5,"Basic Shower":8.5,"Basic Shower 2nd":8.5,"Trimming Package":8.5,"Dry Shower - Kitten":4.0,"Dry Shower - Adult Cat":6.0,"Trimming Only":6.0,"Anal Gland Cleaning":4.0,"Cleaning Eyes/Ears":2.0,"Remove Hair Balls":2.0,"Teeth Brush":1.5,"Bottom Shaving Area":3.0,"Deshedding":2.0,"Trimming Paws":2.0,"Full Service - Small Dog":12.0,"Full Service - Medium Dog":13.0,"Full Service - Large Dog":15.0,"Full Service - XL Dog":17.0,"Basic Shower - Small Dog":8.0,"Basic Shower - Medium Dog":9.0,"Basic Shower - Large Dog":10.0,"Basic Shower - XL Dog":12.0,"Nail Trimming":2.0};
 const GROOMERS=["Helal Ahmed","Mahmoud Amir","Eric Recardo","Ralph","Oliver","Yeshi","Johary","Warren","Tabreez","Juvy"];
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const FS_FREE=3,BS_FREE=5,COMM=0.10;
@@ -517,6 +525,16 @@ function getLines(){
   return lines;
 }
 
+function onVisitChange(){
+  const v=document.getElementById('f-visit').value;
+  const row=document.getElementById('delivery-charge-row');
+  if(row){
+    row.style.display=v==='Delivery'?'block':'none';
+    if(v!=='Delivery')document.getElementById('f-delivery').value='0';
+  }
+  calcTotal();
+}
+
 function onDiscountInput(){
   const v=parseFloat(document.getElementById('f-discount').value)||0;
   if(v>20){document.getElementById('f-discount').value=20;document.getElementById('disc-warn').style.display='block';}
@@ -536,7 +554,7 @@ async function calcTotal(){
   for(const l of lines){
     const price=SVCS[l.svc]||0;
     const total=price*l.qty;
-    const thr=(l.svc==='Full Service')?FS_FREE:(l.svc==='Basic Shower')?BS_FREE:0;
+    const thr=(l.svc==='Full Service'||l.svc==='Full Service 2nd')?FS_FREE:(l.svc==='Basic Shower'||l.svc==='Basic Shower 2nd')?BS_FREE:0;
     let free=0;
     if(thr>0&&l.qty>0){
       let prev=0;
@@ -557,9 +575,11 @@ async function calcTotal(){
     if(sf)sf.textContent=free;
     if(sc)sc.textContent=charged.toFixed(3)+' KD';
   }
-  const discPct=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
+  const discPct=Math.min(100,parseFloat(document.getElementById('f-discount').value)||0)/100;
   const discAmt=totCharged*discPct;
-  const finalCharged=totCharged-discAmt;
+  const afterDisc=totCharged-discAmt;
+  const delivCharge=parseFloat(document.getElementById('f-delivery')?.value)||0;
+  const finalCharged=afterDisc+delivCharge;
   const stEl=document.getElementById('session-total');
   if(lines.length){
     stEl.style.display='block';
@@ -568,6 +588,9 @@ async function calcTotal(){
     const dr=document.getElementById('st-disc-row');
     if(discAmt>0){dr.style.display='flex';document.getElementById('st-disc').textContent='-'+discAmt.toFixed(3)+' KD';}
     else{dr.style.display='none';}
+    const dlr=document.getElementById('st-deliv-row');
+    if(delivCharge>0){dlr.style.display='flex';document.getElementById('st-deliv').textContent='+'+delivCharge.toFixed(3)+' KD';}
+    else if(dlr){dlr.style.display='none';}
     document.getElementById('st-charged').textContent=finalCharged.toFixed(3)+' KD';
     document.getElementById('disc-display').textContent=discAmt.toFixed(3)+' KD';
   }else{stEl.style.display='none';}
@@ -617,21 +640,23 @@ async function saveSession(){
       if(r.services&&r.services.length){r.services.forEach(s=>{if(s.service===l.svc)prevQty+=s.qty||0;});}
       else if(r.service===l.svc){prevQty+=r.qty||0;}
     });
-    const thr=(l.svc==='Full Service')?FS_FREE:(l.svc==='Basic Shower')?BS_FREE:0;
+    const thr=(l.svc==='Full Service'||l.svc==='Full Service 2nd')?FS_FREE:(l.svc==='Basic Shower'||l.svc==='Basic Shower 2nd')?BS_FREE:0;
     const free=thr>0?Math.floor((prevQty+l.qty)/thr)-Math.floor(prevQty/thr):0;
     const charged=Math.max(0,l.qty-free)*price;
     totRev+=total;totFree+=free;totCharged+=charged;
     svcsData.push({service:l.svc,qty:l.qty,price,total,free_units:free,charged});
   }
-  const discPct=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
+  const discPct=Math.min(100,parseFloat(document.getElementById('f-discount').value)||0)/100;
   const discAmt=totCharged*discPct;
-  const finalCharged=totCharged-discAmt;
+  const delivCharge=parseFloat(document.getElementById('f-delivery')?.value)||0;
+  const finalCharged=(totCharged-discAmt)+delivCharge;
   const totalPets=svcsData.reduce((s,sv)=>s+(sv.qty||0),0);
   const rec={date,branch,groomers,phone,client_name:cname,services:svcsData,qty:totalPets,
     total:totRev,free_units:totFree,charged:finalCharged,week,month,
     visit_type:document.getElementById('f-visit').value,
     notes:document.getElementById('f-notes').value,recorded_by:CU.username};
   if(discPct>0){rec.discount_pct=discPct*100;rec.discount_amt=discAmt;}
+  if(delivCharge>0){rec.delivery_charge=delivCharge;}
   const {error}=await sb.from('records').insert([rec]);
   if(error){showAlert('cashier-alert','Error: '+error.message,'error');console.error(error);return;}
   showAlert('cashier-alert',t('savedOk')+(totFree>0?' 🎁 '+totFree+' free!':''),'success');
@@ -639,6 +664,8 @@ async function saveSession(){
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
   document.getElementById('f-discount').value='0';
+  document.getElementById('f-delivery').value='0';
+  document.getElementById('delivery-charge-row').style.display='none';
   document.getElementById('disc-display').textContent='0.000 KD';
   document.getElementById('client-hint').style.display='none';
   document.getElementById('svc-lines').innerHTML='';
@@ -717,7 +744,7 @@ function renderDashboard(){
   const fbs=recs.reduce((s,r)=>{if(r.services&&r.services.length)return s+r.services.filter(sv=>sv.service==='Basic Shower').reduce((a,sv)=>a+(sv.free_units||0),0);return s+(r.service==='Basic Shower'?r.free_units||0:0);},0);
   document.getElementById('dash-kpis').innerHTML=
     kpi('Revenue',rev.toFixed(3)+' KD','green')+kpi('Charged (after free)',paid.toFixed(3)+' KD','blue')+
-    kpi('Pets',pets,'')+kpi('Commission',(rev*COMM).toFixed(3)+' KD','red')+
+    kpi('Pets',pets,'')+kpi('Commission',(paid*COMM).toFixed(3)+' KD','red')+
     kpi('Free FS / BS',ffs+' / '+fbs,'amber')+kpi('Free Value',((ffs*12.5)+(fbs*8.5)).toFixed(3)+' KD','');
   const alrai=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+(r.total||0),0);
   const alq=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+(r.total||0),0);
@@ -735,7 +762,7 @@ function renderDashboard(){
     row('🚗 Delivery <span style="font-size:11px;color:var(--muted)">('+deliveries+')</span>','<span style="font-weight:700;color:var(--blue)">'+delivRev.toFixed(3)+' KD</span>');
   const grmData=GROOMERS.map(g=>{
     const gr=recs.filter(r=>grmArr(r).includes(g));
-    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
+    const gRev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
     const gPets=gr.reduce((s,r)=>s+getPets(r),0);
     return{g,gRev,gPets};
   }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
@@ -746,7 +773,7 @@ function renderDashboard(){
     const mRev=mr.reduce((s,r)=>s+(r.total||0),0);
     const mPaid=mr.reduce((s,r)=>s+(r.charged||0),0);
     const mPets=mr.reduce((s,r)=>s+getPets(r),0);
-    return'<tr><td><b>'+m+'</b></td><td style="color:var(--teal-dark);font-weight:700">'+mRev.toFixed(3)+' KD</td><td style="color:var(--blue);font-weight:700">'+mPaid.toFixed(3)+' KD</td><td>'+mPets+'</td><td style="color:var(--red-dark);font-weight:700">'+(mRev*COMM).toFixed(3)+' KD</td></tr>';
+    return'<tr><td><b>'+m+'</b></td><td style="color:var(--teal-dark);font-weight:700">'+mRev.toFixed(3)+' KD</td><td style="color:var(--blue);font-weight:700">'+mPaid.toFixed(3)+' KD</td><td>'+mPets+'</td><td style="color:var(--red-dark);font-weight:700">'+(mPaid*COMM).toFixed(3)+' KD</td></tr>';
   }).join('')+'</tbody></table>';
 }
 
@@ -804,6 +831,7 @@ function openRecModal(i){
     +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Total Revenue</span><span>'+(r.total||0).toFixed(3)+' KD</span></div>'
     +(r.free_units>0?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Free Units</span><span style="color:#F39C12">🎁 '+r.free_units+'</span></div>':'')
     +(r.discount_amt>0?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Discount ('+(r.discount_pct||0)+'%)</span><span style="color:#F39C12">-'+(r.discount_amt).toFixed(3)+' KD</span></div>':'')
+    +(r.delivery_charge>0?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>🚗 Delivery Charge</span><span style="color:#A9DFBF">+'+(r.delivery_charge).toFixed(3)+' KD</span></div>':'')
     +'<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px;margin-top:4px"><span>Total Charged</span><span style="color:#A9DFBF">'+(r.charged||0).toFixed(3)+' KD</span></div>'
     +'</div>'
     +(r.notes?'<div style="margin-top:12px;padding:10px;background:#FFF9C4;border-radius:8px;font-size:13px"><b>Notes:</b> '+r.notes+'</div>':'')
@@ -820,7 +848,7 @@ function renderCommissions(){
   const WEEKS=['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'];
   const grmData=GROOMERS.map(g=>{
     const gr=recs.filter(r=>grmArr(r).includes(g));
-    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
+    const gRev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
     const gPets=gr.reduce((s,r)=>s+getPets(r),0);
     return{g,gRev,gPets,gComm:gRev*COMM};
   }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
@@ -828,7 +856,7 @@ function renderCommissions(){
     const wks=WEEKS.map((wk,wi)=>{
       const wr=recs.filter(r=>r.week===wk&&grmArr(r).includes(x.g));
       if(!wr.length)return'';
-      const wRev=wr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
+      const wRev=wr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
       return'<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
         +'<span class="week-tag">'+(t('weekLabel')[wi]||wk)+'</span>'
         +'<span style="font-size:12px">'+wRev.toFixed(3)+' KD — <b style="color:var(--teal-dark)">Comm: '+(wRev*COMM).toFixed(3)+' KD</b></span>'
