@@ -266,9 +266,19 @@ body.rtl th,body.rtl td{text-align:right}
 
   <!-- DASHBOARD -->
   <div id="sec-dashboard" class="tab-section active">
-    <div class="filter-row">
-      <select id="dash-year" onchange="renderDashboard()" style="max-width:110px;margin-bottom:0"></select>
-      <select id="dash-month" onchange="renderDashboard()" style="max-width:160px;margin-bottom:0"><option value="all">All Months</option></select>
+    <div class="filter-row" style="flex-wrap:wrap;gap:8px">
+      <select id="dash-year" onchange="renderDashboard()" style="min-width:100px;margin-bottom:0"></select>
+      <select id="dash-month" onchange="renderDashboard()" style="min-width:130px;margin-bottom:0"><option value="all">All Months</option></select>
+      <select id="dash-branch" onchange="renderDashboard()" style="min-width:150px;margin-bottom:0">
+        <option value="all">All Branches</option>
+        <option value="AlRai">AlRai</option>
+        <option value="Aswaq AlQurain">Aswaq AlQurain</option>
+      </select>
+      <select id="dash-visit" onchange="renderDashboard()" style="min-width:130px;margin-bottom:0">
+        <option value="all">All Visit Types</option>
+        <option value="Visit">Visit</option>
+        <option value="Delivery">Delivery</option>
+      </select>
       <button onclick="exportCSV()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:auto">⬇️ Export CSV</button>
     </div>
     <div class="kpi-grid" id="dash-kpis"></div>
@@ -643,7 +653,7 @@ function initDropdowns(){
   if(yearSel){
     const curYear=new Date().getFullYear();
     yearSel.innerHTML='<option value="all">All Years</option>';
-    for(let y=2025;y<=curYear+2;y++){
+    for(let y=2025;y<=2050;y++){
       yearSel.innerHTML+='<option value="'+y+'"'+(y===curYear?' selected':'')+'>'+y+'</option>';
     }
   }
@@ -670,17 +680,21 @@ function grmArr(r){
   try{return JSON.parse(r.groomers);}catch(e){return[r.groomers];}
 }
 
-function filterRecs(month,branch,year){
-  // Get year from dashboard selector if not provided
+function filterRecs(month,branch,year,visitType){
   if(year===undefined){
     const ySel=document.getElementById('dash-year');
     year=ySel?ySel.value:'all';
+  }
+  if(visitType===undefined){
+    const vSel=document.getElementById('dash-visit');
+    visitType=vSel?vSel.value:'all';
   }
   return allRecs.filter(r=>{
     const mOk=!month||month==='all'||(r.month&&r.month.toLowerCase()===month.toLowerCase());
     const bOk=!branch||branch==='all'||r.branch===branch;
     const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
-    return mOk&&bOk&&yOk;
+    const vOk=!visitType||visitType==='all'||r.visit_type===visitType;
+    return mOk&&bOk&&yOk&&vOk;
   });
 }
 
@@ -693,7 +707,9 @@ function getPets(r){
 function renderDashboard(){
   const month=document.getElementById('dash-month').value;
   const year=document.getElementById('dash-year')?document.getElementById('dash-year').value:'all';
-  const recs=filterRecs(month,'all',year);
+  const branch=document.getElementById('dash-branch')?document.getElementById('dash-branch').value:'all';
+  const visitType=document.getElementById('dash-visit')?document.getElementById('dash-visit').value:'all';
+  const recs=filterRecs(month,branch,year,visitType);
   const rev=recs.reduce((s,r)=>s+(r.total||0),0);
   const paid=recs.reduce((s,r)=>s+(r.charged||0),0);
   const pets=recs.reduce((s,r)=>s+getPets(r),0);
@@ -705,9 +721,18 @@ function renderDashboard(){
     kpi('Free FS / BS',ffs+' / '+fbs,'amber')+kpi('Free Value',((ffs*12.5)+(fbs*8.5)).toFixed(3)+' KD','');
   const alrai=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+(r.total||0),0);
   const alq=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+(r.total||0),0);
+  const alraiCount=recs.filter(r=>r.branch==='AlRai').length;
+  const alqCount=recs.filter(r=>r.branch==='Aswaq AlQurain').length;
+  const visits=recs.filter(r=>r.visit_type==='Visit'||!r.visit_type).length;
+  const deliveries=recs.filter(r=>r.visit_type==='Delivery').length;
+  const visitRev=recs.filter(r=>r.visit_type==='Visit'||!r.visit_type).reduce((s,r)=>s+(r.total||0),0);
+  const delivRev=recs.filter(r=>r.visit_type==='Delivery').reduce((s,r)=>s+(r.total||0),0);
   document.getElementById('dash-branches').innerHTML=
-    row('AlRai','<span style="font-weight:800;color:var(--teal-dark)">'+alrai.toFixed(3)+' KD</span>')+
-    row('Aswaq AlQurain','<span style="font-weight:800;color:var(--blue)">'+alq.toFixed(3)+' KD</span>');
+    row('AlRai <span style="font-size:11px;color:var(--muted)">('+alraiCount+' sessions)</span>','<span style="font-weight:800;color:var(--teal-dark)">'+alrai.toFixed(3)+' KD</span>')+
+    row('Aswaq AlQurain <span style="font-size:11px;color:var(--muted)">('+alqCount+' sessions)</span>','<span style="font-weight:800;color:var(--blue)">'+alq.toFixed(3)+' KD</span>')+
+    '<div style="border-top:1px solid var(--border);margin:8px 0"></div>'+
+    row('🚶 Visits <span style="font-size:11px;color:var(--muted)">('+visits+')</span>','<span style="font-weight:700;color:var(--teal-dark)">'+visitRev.toFixed(3)+' KD</span>')+
+    row('🚗 Delivery <span style="font-size:11px;color:var(--muted)">('+deliveries+')</span>','<span style="font-weight:700;color:var(--blue)">'+delivRev.toFixed(3)+' KD</span>');
   const grmData=GROOMERS.map(g=>{
     const gr=recs.filter(r=>grmArr(r).includes(g));
     const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
