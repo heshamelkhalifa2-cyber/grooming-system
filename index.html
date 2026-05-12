@@ -3,283 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pet Point — Grooming Management System</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-function closeModal(e){
-  if(e.target===document.getElementById('modal-overlay'))
-    document.getElementById('modal-overlay').style.display='none';
-}
-
-function openRecordModal(rec){
-  const svcs=rec.services&&rec.services.length
-    ?rec.services.map(s=>`
-      <tr>
-        <td style="padding:8px 10px">${s.service}</td>
-        <td style="padding:8px 10px;text-align:center">${s.qty}</td>
-        <td style="padding:8px 10px;text-align:center">${s.price?s.price.toFixed(3)+' KD':'-'}</td>
-        <td style="padding:8px 10px;text-align:center">${s.free_units>0?'🎁 '+s.free_units:'-'}</td>
-        <td style="padding:8px 10px;font-weight:700;color:#1B5C38">${s.charged?s.charged.toFixed(3)+' KD':'-'}</td>
-      </tr>`).join('')
-    :`<tr><td colspan="5" style="padding:8px 10px">${rec.service||'-'} × ${rec.qty||1}</td></tr>`;
-
-  document.getElementById('modal-title').textContent = `📋 Session — ${rec.date}`;
-  document.getElementById('modal-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <div style="background:#F0F7F2;border-radius:10px;padding:12px">
-        <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:4px">Client</div>
-        <div style="font-weight:800;font-size:15px">${rec.client_name||'-'}</div>
-        <div style="font-size:13px;color:#5D7A69">${rec.phone}</div>
-      </div>
-      <div style="background:#F0F7F2;border-radius:10px;padding:12px">
-        <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:4px">Branch & Visit</div>
-        <div style="font-weight:700">${rec.branch}</div>
-        <div style="font-size:13px;color:#5D7A69">${rec.visit_type||'Visit'} — ${rec.week||''}</div>
-      </div>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:8px">Groomers</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${(rec.groomers||[]).map(g=>`<span style="background:#1B3A2D;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">${g}</span>`).join('')}
-      </div>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:8px">Services</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:#F0F7F2">
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#5D7A69">Service</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Qty</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Price</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Free</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Charged</th>
-          </tr>
-        </thead>
-        <tbody style="border:1px solid #C8E6D0">${svcs}</tbody>
-      </table>
-    </div>
-
-    <div style="background:#1B3A2D;color:#fff;border-radius:10px;padding:14px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
-        <span>Total Revenue</span><span>${rec.total?rec.total.toFixed(3)+' KD':'0.000 KD'}</span>
-      </div>
-      ${rec.free_units>0?`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Free Units</span><span style="color:#F39C12">🎁 ${rec.free_units}</span></div>`:''}
-      ${rec.discount_amt>0?`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Discount (${rec.discount_pct||0}%)</span><span style="color:#F39C12">-${rec.discount_amt.toFixed(3)} KD</span></div>`:''}
-      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px;margin-top:4px">
-        <span>Total Charged</span><span style="color:#A9DFBF">${rec.charged?rec.charged.toFixed(3)+' KD':'0.000 KD'}</span>
-      </div>
-    </div>
-    ${rec.notes?`<div style="margin-top:12px;padding:10px 14px;background:#FFF9C4;border-radius:8px;font-size:13px"><b>Notes:</b> ${rec.notes}</div>`:''}
-    <div style="margin-top:10px;font-size:11px;color:#5D7A69;text-align:center">Recorded by: ${rec.recorded_by||'-'} — ${rec.created_at?new Date(rec.created_at).toLocaleString():''}</div>
-  `;
-  document.getElementById('modal-overlay').style.display='block';
-}
-
-function openClientModal(phone){
-  const pr=allRecords.filter(r=>r.phone===phone);
-  if(!pr.length)return;
-  const clientName=pr.find(r=>r.client_name)?.client_name||'';
-  const totalPaid=pr.reduce((s,r)=>s+r.charged,0);
-  const totalRev=pr.reduce((s,r)=>s+r.total,0);
-  const totalFree=pr.reduce((s,r)=>s+(r.free_units||0),0);
-  const totalDisc=pr.reduce((s,r)=>s+(r.discount_amt||0),0);
-  const lastDate=pr.map(r=>r.date).sort().reverse()[0];
-
-  document.getElementById('modal-title').textContent = `👥 ${clientName||phone}`;
-  document.getElementById('modal-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-      <div style="background:#F0F7F2;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#5D7A69;font-weight:700;text-transform:uppercase">Visits</div>
-        <div style="font-size:22px;font-weight:800;color:#1B3A2D">${pr.length}</div>
-      </div>
-      <div style="background:#F0F7F2;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#5D7A69;font-weight:700;text-transform:uppercase">Total Paid</div>
-        <div style="font-size:16px;font-weight:800;color:#1B5C38">${totalPaid.toFixed(3)} KD</div>
-      </div>
-      <div style="background:#F0F7F2;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#5D7A69;font-weight:700;text-transform:uppercase">Last Visit</div>
-        <div style="font-size:13px;font-weight:700;color:#1B3A2D">${lastDate||'-'}</div>
-      </div>
-    </div>
-    ${totalDisc>0?`<div style="background:#FFF9C4;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px">Total Discounts Given: <b>${totalDisc.toFixed(3)} KD</b></div>`:''}
-    <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:8px">Visit History</div>
-    ${pr.map(r=>{
-      const svcsText=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty).join(', '):(r.service||'');
-      return`<div onclick="openRecordModal(allRecords.find(x=>x.id==='${r.id}'))" style="background:#F0F7F2;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;border:1px solid #C8E6D0;transition:all 0.15s" onmouseover="this.style.background='#E8F5EE'" onmouseout="this.style.background='#F0F7F2'">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-weight:700;font-size:13px">${r.date} — ${r.branch}</div>
-            <div style="font-size:11px;color:#5D7A69;margin-top:2px">${svcsText}</div>
-            <div style="font-size:11px;color:#5D7A69">${(r.groomers||[]).join(', ')}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:800;color:#1B5C38">${r.charged.toFixed(3)} KD</div>
-            ${r.free_units>0?`<div style="font-size:11px;color:#8B6914">🎁 ${r.free_units} free</div>`:''}
-            ${r.discount_amt>0?`<div style="font-size:11px;color:#8B6914">-${r.discount_amt.toFixed(3)} disc</div>`:''}
-          </div>
-        </div>
-      </div>`;
-    }).join('')}
-  `;
-  document.getElementById('modal-overlay').style.display='block';
-}
-
-
-// ── EXPORT CSV ────────────────────────────────────────────────────────────────
-function exportCSV(){
-  if(!allRecords.length){alert('No data to export!');return;}
-  const month=document.getElementById('dash-month').value;
-  const recs=month==='all'?allRecords:allRecords.filter(r=>r.month&&r.month.toLowerCase()===month.toLowerCase());
-  
-  const headers=['Date','Month','Week','Branch','Client Name','Phone','Groomers','Services','Total Qty','Total Revenue (KD)','Free Units','Charged (KD)','Discount %','Discount Amt (KD)','Visit Type','Notes','Recorded By'];
-  
-  const rows=recs.map(r=>{
-    const groomers=(r.groomers&&Array.isArray(r.groomers)?r.groomers:getGroomers(r)).join(' | ');
-    const svcs=r.services&&r.services.length?r.services.map(s=>`${s.service}x${s.qty}`).join(' | '):(r.service||'');
-    const totalQty=r.services&&r.services.length?r.services.reduce((s,sv)=>s+(sv.qty||0),0):(r.qty||0);
-    return [
-      r.date||'',r.month||'',r.week||'',r.branch||'',
-      r.client_name||'',r.phone||'',groomers,svcs,totalQty,
-      (r.total||0).toFixed(3),(r.free_units||0),(r.charged||0).toFixed(3),
-      (r.discount_pct||0),(r.discount_amt||0).toFixed(3),
-      r.visit_type||'',r.notes||'',r.recorded_by||''
-    ];
-  });
-  
-  const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('
-');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`PetPoint_Records_${month}_${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ── DELETE RECORD ─────────────────────────────────────────────────────────────
-async function deleteRecord(id, event){
-  event.stopPropagation();
-  if(!confirm('Delete this record? This cannot be undone.')) return;
-  const {error}=await sb.from('records').delete().eq('id',id);
-  if(error){alert('Error deleting: '+error.message);return;}
-  await loadAllRecords();
-  renderRecords();
-  renderDashboard();
-}
-
-// ── EDIT USER ─────────────────────────────────────────────────────────────────
-function editUserById(idx){
-  const u=_allUsers[idx];
-  if(!u)return;
-  document.getElementById('edit-uid').value=u.id;
-  document.getElementById('edit-uname-display').textContent='@'+u.username;
-  document.getElementById('edit-name').value=u.name||'';
-  document.getElementById('edit-pass').value='';
-  document.getElementById('edit-role').value=u.role||'cashier';
-  document.getElementById('edit-branch').value=u.branch||'all';
-  document.getElementById('edit-user-msg').style.display='none';
-  document.getElementById('edit-user-modal').style.display='flex';
-}
-
-function editUserModal(id,username,name,role,branch){
-  document.getElementById('edit-uid').value=id;
-  document.getElementById('edit-name').value=name;
-  document.getElementById('edit-pass').value='';
-  document.getElementById('edit-role').value=role;
-  document.getElementById('edit-branch').value=branch||'all';
-  document.getElementById('edit-user-msg').style.display='none';
-  document.getElementById('edit-user-modal').style.display='flex';
-}
-
-async function saveEditUser(){
-  const id=document.getElementById('edit-uid').value;
-  const name=document.getElementById('edit-name').value.trim();
-  const pass=document.getElementById('edit-pass').value;
-  const role=document.getElementById('edit-role').value;
-  const branch=document.getElementById('edit-branch').value;
-  const msg=document.getElementById('edit-user-msg');
-  
-  const updates={name,role,branch};
-  if(pass) updates.password=pass;
-  
-  const {error}=await sb.from('users').update(updates).eq('id',id);
-  if(error){
-    msg.textContent='Error: '+error.message;
-    msg.style.display='block';msg.style.color='#922B21';
-    return;
-  }
-  msg.textContent='Saved!';msg.style.display='block';msg.style.color='#1B5C38';
-  setTimeout(()=>{
-    document.getElementById('edit-user-modal').style.display='none';
-    renderUsers();
-  },800);
-}
-
-</script>
+<title>Pet Point — Grooming System</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--navy:#1B3A2D;--teal:#2D7A4F;--teal-dark:#1B5C38;--teal-light:#E8F5EE;--red:#C0392B;--red-dark:#922B21;--amber:#F39C12;--blue:#2471A3;--bg:#F0F7F2;--card:#fff;--border:#C8E6D0;--text:#1A2E22;--muted:#5D7A69;--radius:12px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 body.rtl{direction:rtl}
-
-/* BG PATTERN */
-body::before{content:'';position:fixed;inset:0;background:
-  radial-gradient(circle at 20% 20%, rgba(45,122,79,0.06) 0%, transparent 50%),
-  radial-gradient(circle at 80% 80%, rgba(45,122,79,0.06) 0%, transparent 50%),
-  url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232D7A4F' fill-opacity='0.04'%3E%3Cpath d='M30 10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm-8 6c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3zm16 0c-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3zm-8 6c-2.2 0-4 1.8-4 4v6c0 .6.4 1 1 1h6c.6 0 1-.4 1-1v-6c0-2.2-1.8-4-4-4z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  pointer-events:none;z-index:0}
-body>*{position:relative;z-index:1}
-
+.page{display:none}.page.active{display:block}
+.container{max-width:960px;margin:0 auto;padding:24px 16px}
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;overflow:hidden;background:linear-gradient(160deg,#e8f5ee 0%,#f0faf4 50%,#d8eee2 100%)}
+.login-box{background:rgba(255,255,255,0.96);border-radius:16px;border:1px solid var(--border);padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(27,58,45,0.12);position:relative;z-index:2}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo img{width:76px;height:76px;border-radius:18px;object-fit:contain;box-shadow:0 4px 16px rgba(27,58,45,0.15)}
+.login-logo h1{font-size:22px;font-weight:800;color:var(--navy);margin-top:10px}
+.login-logo p{font-size:12px;color:var(--muted);margin-top:3px}
+/* TOPBAR */
 .topbar{background:var(--navy);color:#fff;padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
 .topbar-left{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
 .topbar-logo{width:32px;height:32px;border-radius:8px;object-fit:contain;background:#fff;padding:2px}
-.topbar-right{display:flex;align-items:center;gap:8px;font-size:13px}
+.topbar-right{display:flex;align-items:center;gap:8px}
 .lang-btn{background:rgba(255,255,255,0.15);border:none;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
-.lang-btn:hover{background:rgba(255,255,255,0.25)}
 .logout-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:#fff;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px}
-
-.page{display:none}.page.active{display:block}
-.container{max-width:960px;margin:0 auto;padding:24px 16px}
-
-/* LOGIN */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.login-box{background:var(--card);border-radius:16px;border:1px solid var(--border);padding:40px 36px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(27,58,45,0.1)}
-.login-logo{text-align:center;margin-bottom:28px}
-.login-logo img{width:72px;height:72px;border-radius:16px;object-fit:contain}
-.login-logo h1{font-size:22px;font-weight:800;color:var(--navy);margin-top:10px}
-.login-logo p{font-size:13px;color:var(--muted);margin-top:3px}
-
+/* FORM */
 label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
 input,select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;margin-bottom:14px;transition:border 0.15s}
-input:focus,select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,122,79,0.12)}
+input:focus,select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,122,79,0.1)}
 textarea{resize:vertical;min-height:70px}
-
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all 0.15s;font-family:inherit}
 .btn-primary{background:var(--teal);color:#fff;width:100%}
 .btn-primary:hover{background:var(--teal-dark)}
-.btn-danger{background:var(--red);color:#fff}
-.btn-danger:hover{background:var(--red-dark)}
 .btn-sm{padding:5px 12px;font-size:12px;width:auto}
-
+/* CARDS */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(27,58,45,0.06)}
 .card-title{font-size:14px;font-weight:800;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:7px}
-
+/* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
 .kpi{background:linear-gradient(135deg,var(--teal-light),#fff);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
 .kpi-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px}
 .kpi-val{font-size:20px;font-weight:800}
-.kpi-val.green{color:var(--teal-dark)}
-.kpi-val.red{color:var(--red-dark)}
-.kpi-val.blue{color:var(--blue)}
-.kpi-val.amber{color:#8B6914}
-
-.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;box-shadow:0 1px 4px rgba(27,58,45,0.06)}
+.kpi-val.green{color:var(--teal-dark)}.kpi-val.red{color:var(--red-dark)}.kpi-val.blue{color:var(--blue)}.kpi-val.amber{color:#8B6914}
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px}
 .tab{flex:1;padding:8px 6px;border-radius:9px;border:none;background:transparent;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;transition:all 0.15s;text-align:center;font-family:inherit}
 .tab.active{background:var(--navy);color:#fff}
 .tab:hover:not(.active){background:var(--teal-light);color:var(--navy)}
-
+/* TABLE */
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:var(--teal-light);padding:9px 10px;text-align:left;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--teal-dark);border-bottom:2px solid var(--border)}
@@ -287,258 +57,133 @@ td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#F7FBF9}
 body.rtl th,body.rtl td{text-align:right}
-
+/* BADGES */
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
-.badge-green{background:#D5F0E0;color:#1B5C38}
-.badge-blue{background:#D4E6F1;color:#1A5276}
-.badge-amber{background:#FCF3CF;color:#7D6608}
-.badge-red{background:#FADBD8;color:#922B21}
+.badge-green{background:#D5F0E0;color:#1B5C38}.badge-blue{background:#D4E6F1;color:#1A5276}
+.badge-amber{background:#FCF3CF;color:#7D6608}.badge-red{background:#FADBD8;color:#922B21}
 .badge-gray{background:#EAECEE;color:#4D5656}
-
+/* ALERTS */
 .alert{padding:10px 14px;border-radius:9px;font-size:13px;margin-bottom:12px;display:none}
 .alert.show{display:block}
 .alert-success{background:#D5F0E0;color:#1B5C38;border:1px solid #A9DFBF}
 .alert-error{background:#FADBD8;color:#922B21;border:1px solid #F1948A}
-
+/* PRICE PREVIEW */
 .price-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .price-box{background:var(--teal-light);border:1px solid var(--border);border-radius:9px;padding:10px;text-align:center}
 .price-box .plabel{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:3px}
 .price-box .pval{font-size:16px;font-weight:800}
-
+/* MISC */
 .client-hint{font-size:12px;color:var(--teal-dark);background:#D5F0E0;border-radius:7px;padding:6px 10px;margin-top:-10px;margin-bottom:12px;display:none;border:1px solid #A9DFBF}
-
 .grm-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
 .grm-row:last-child{border-bottom:none}
 .rank-circle{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-
-.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
 .filter-row select{flex:1;min-width:120px;margin-bottom:0}
-
 .week-tag{background:#D4E6F1;color:#1A5276;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700}
-
 .empty{text-align:center;padding:36px;color:var(--muted);font-size:13px}
 .empty .icon{font-size:36px;margin-bottom:10px}
-
 .spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 .user-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
 .user-item:last-child{border-bottom:none}
 .user-avatar{width:34px;height:34px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-
 .tab-section{display:none}.tab-section.active{display:block}
-
-/* SERVICE LINES */
-.service-line{background:#F0F7F2;border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px}
-.service-line-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.add-service-btn{background:var(--teal);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
-.remove-service-btn{background:var(--red);color:#fff;border:none;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
-
-/* COPYRIGHT FOOTER */
-.copyright{text-align:center;padding:20px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);margin-top:20px;line-height:1.8}
-.copyright b{color:var(--navy)}
-
-@media(max-width:600px){
-  .tabs{overflow-x:auto}.tab{font-size:10px;padding:6px 4px}
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .price-preview{grid-template-columns:repeat(2,1fr)}
-  .login-box{padding:28px 20px}
-}
+.svc-line{background:var(--teal-light);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px}
+.copyright{text-align:center;padding:20px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);margin-top:20px;line-height:2}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;overflow-y:auto;padding:20px}
+.modal-box{background:#fff;border-radius:16px;max-width:600px;margin:20px auto;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.2)}
+.modal-header{background:var(--navy);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+@media(max-width:600px){.tabs{overflow-x:auto}.tab{font-size:10px;padding:6px 4px}.kpi-grid{grid-template-columns:repeat(2,1fr)}.login-box{padding:28px 20px}}
 </style>
 </head>
 <body>
 
+<!-- ═══ LOGIN ═══ -->
 <div id="page-login" class="page active">
-<div class="login-wrap" style="position:relative;overflow:hidden">
+<div class="login-wrap">
+  <!-- Cat SVG -->
+  <svg style="position:fixed;bottom:0;left:2%;z-index:1;opacity:0.85" width="200" height="260" viewBox="0 0 200 260" fill="none">
+    <ellipse cx="100" cy="195" rx="60" ry="62" fill="#40916C"/>
+    <path d="M155 220 Q192 195 183 158 Q178 140 165 148 Q160 153 170 163 Q175 178 148 205" stroke="#2D6A4F" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <ellipse cx="74" cy="248" rx="14" ry="20" fill="#2D6A4F"/><ellipse cx="126" cy="248" rx="14" ry="20" fill="#2D6A4F"/>
+    <ellipse cx="74" cy="263" rx="12" ry="6" fill="#1B4332"/><ellipse cx="126" cy="263" rx="12" ry="6" fill="#1B4332"/>
+    <ellipse cx="100" cy="124" rx="48" ry="44" fill="#2D6A4F"/><ellipse cx="100" cy="122" rx="42" ry="40" fill="#40916C"/>
+    <polygon points="58,94 48,56 82,84" fill="#2D6A4F"/><polygon points="142,94 152,56 118,84" fill="#2D6A4F"/>
+    <polygon points="61,92 56,64 80,85" fill="#52B788"/><polygon points="139,92 144,64 120,85" fill="#52B788"/>
+    <polygon points="62,90 57,67 78,84" fill="#E07A5F" opacity="0.7"/><polygon points="138,90 143,67 122,84" fill="#E07A5F" opacity="0.7"/>
+    <ellipse cx="86" cy="120" rx="11" ry="13" fill="#1B2A1E"/><ellipse cx="114" cy="120" rx="11" ry="13" fill="#1B2A1E"/>
+    <ellipse cx="86" cy="120" rx="8" ry="10" fill="#F4A261"/><ellipse cx="114" cy="120" rx="8" ry="10" fill="#F4A261"/>
+    <ellipse cx="86" cy="120" rx="4" ry="8" fill="#1a1a1a"/><ellipse cx="114" cy="120" rx="4" ry="8" fill="#1a1a1a"/>
+    <circle cx="89" cy="116" r="2.5" fill="white"/><circle cx="117" cy="116" r="2.5" fill="white"/>
+    <polygon points="100,136 95,131 105,131" fill="#E07A5F"/>
+    <path d="M95 137 Q100 142 105 137" stroke="#1B4332" stroke-width="1.5" fill="none"/>
+    <line x1="50" y1="132" x2="91" y2="137" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+    <line x1="48" y1="137" x2="91" y2="139" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+    <line x1="109" y1="137" x2="152" y2="132" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+    <line x1="109" y1="139" x2="154" y2="137" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+    <rect x="66" y="158" width="68" height="11" rx="5.5" fill="#E63946"/>
+    <circle cx="100" cy="163" r="5" fill="#FFD166"/>
+  </svg>
+  <!-- Dog SVG -->
+  <svg style="position:fixed;bottom:0;right:2%;z-index:1;opacity:0.85" width="220" height="280" viewBox="0 0 220 280" fill="none">
+    <ellipse cx="110" cy="205" rx="64" ry="66" fill="#84A98C"/>
+    <path d="M46 215 Q12 185 22 150 Q27 130 44 140 Q51 147 38 157 Q31 173 58 200" stroke="#6B9080" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <ellipse cx="76" cy="264" rx="16" ry="24" fill="#6B9080"/><ellipse cx="144" cy="264" rx="16" ry="24" fill="#6B9080"/>
+    <ellipse cx="76" cy="278" rx="14" ry="7" fill="#52796F"/><ellipse cx="144" cy="278" rx="14" ry="7" fill="#52796F"/>
+    <ellipse cx="110" cy="120" rx="54" ry="50" fill="#6B9080"/><ellipse cx="110" cy="118" rx="48" ry="45" fill="#84A98C"/>
+    <ellipse cx="62" cy="112" rx="18" ry="32" fill="#52796F" transform="rotate(-15 62 112)"/>
+    <ellipse cx="158" cy="112" rx="18" ry="32" fill="#52796F" transform="rotate(15 158 112)"/>
+    <ellipse cx="64" cy="113" rx="12" ry="25" fill="#6B9080" transform="rotate(-15 64 113)"/>
+    <ellipse cx="156" cy="113" rx="12" ry="25" fill="#6B9080" transform="rotate(15 156 113)"/>
+    <ellipse cx="93" cy="112" rx="12" ry="12" fill="#2D3A35"/><ellipse cx="127" cy="112" rx="12" ry="12" fill="#2D3A35"/>
+    <ellipse cx="93" cy="112" rx="9" ry="9" fill="#8B6914"/><ellipse cx="127" cy="112" rx="9" ry="9" fill="#8B6914"/>
+    <ellipse cx="93" cy="112" rx="5" ry="5" fill="#1a1a1a"/><ellipse cx="127" cy="112" rx="5" ry="5" fill="#1a1a1a"/>
+    <circle cx="96" cy="108" r="3" fill="white"/><circle cx="130" cy="108" r="3" fill="white"/>
+    <path d="M81 100 Q93 96 105 100" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M115 100 Q127 96 139 100" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="110" cy="136" rx="22" ry="16" fill="#52796F"/>
+    <ellipse cx="110" cy="134" rx="18" ry="13" fill="#6B9080"/>
+    <ellipse cx="110" cy="127" rx="11" ry="8" fill="#2D3A35"/>
+    <ellipse cx="106" cy="125" rx="3.5" ry="2.5" fill="rgba(255,255,255,0.2)"/>
+    <path d="M100 137 Q110 146 120 137" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none"/>
+    <ellipse cx="110" cy="148" rx="9" ry="7" fill="#E07A5F" opacity="0.9"/>
+    <line x1="110" y1="145" x2="110" y2="154" stroke="#C05040" stroke-width="1.5"/>
+    <rect x="74" y="156" width="72" height="12" rx="6" fill="#2471A3"/>
+    <circle cx="110" cy="162" r="5" fill="#FFD166"/>
+  </svg>
+  <!-- Paw prints -->
+  <svg style="position:fixed;top:15%;left:18%;opacity:0.15;transform:rotate(20deg)" width="44" height="48" viewBox="0 0 50 55"><ellipse cx="25" cy="40" rx="13" ry="11" fill="#2D6A4F"/><circle cx="11" cy="26" r="6" fill="#2D6A4F"/><circle cx="25" cy="21" r="6" fill="#2D6A4F"/><circle cx="39" cy="26" r="6" fill="#2D6A4F"/></svg>
+  <svg style="position:fixed;top:22%;right:20%;opacity:0.12;transform:rotate(-18deg)" width="36" height="40" viewBox="0 0 50 55"><ellipse cx="25" cy="40" rx="13" ry="11" fill="#40916C"/><circle cx="11" cy="26" r="6" fill="#40916C"/><circle cx="25" cy="21" r="6" fill="#40916C"/><circle cx="39" cy="26" r="6" fill="#40916C"/></svg>
+  <svg style="position:fixed;top:68%;left:10%;opacity:0.12;transform:rotate(35deg)" width="32" height="36" viewBox="0 0 50 55"><ellipse cx="25" cy="40" rx="13" ry="11" fill="#52B788"/><circle cx="11" cy="26" r="6" fill="#52B788"/><circle cx="25" cy="21" r="6" fill="#52B788"/><circle cx="39" cy="26" r="6" fill="#52B788"/></svg>
+  <svg style="position:fixed;top:58%;right:10%;opacity:0.1;transform:rotate(-28deg)" width="28" height="32" viewBox="0 0 50 55"><ellipse cx="25" cy="40" rx="13" ry="11" fill="#2D6A4F"/><circle cx="11" cy="26" r="6" fill="#2D6A4F"/><circle cx="25" cy="21" r="6" fill="#2D6A4F"/><circle cx="39" cy="26" r="6" fill="#2D6A4F"/></svg>
 
-<!-- Light background -->
-<div style="position:fixed;inset:0;background:linear-gradient(160deg,#e8f5ee 0%,#f0faf4 35%,#e0f0e8 70%,#d8eee2 100%);z-index:0"></div>
-<div style="position:fixed;inset:0;background:radial-gradient(ellipse at 15% 80%,rgba(45,122,79,0.12) 0%,transparent 55%),radial-gradient(ellipse at 85% 80%,rgba(45,122,79,0.12) 0%,transparent 55%),radial-gradient(ellipse at 50% 10%,rgba(27,58,45,0.06) 0%,transparent 50%);z-index:0"></div>
-
-<!-- CAT - Premium illustrated -->
-<svg style="position:fixed;bottom:0;left:2%;z-index:1;filter:drop-shadow(0 4px 12px rgba(27,58,45,0.2))" width="220" height="280" viewBox="0 0 220 280" fill="none">
-  <!-- Body -->
-  <ellipse cx="110" cy="200" rx="65" ry="70" fill="#2D6A4F"/>
-  <ellipse cx="110" cy="195" rx="58" ry="62" fill="#40916C"/>
-  <!-- Tail curving -->
-  <path d="M170 230 Q210 200 200 160 Q195 140 180 150 Q175 155 185 165 Q190 180 160 210" stroke="#2D6A4F" stroke-width="18" fill="none" stroke-linecap="round"/>
-  <path d="M170 230 Q208 202 198 162 Q193 143 180 152" stroke="#52B788" stroke-width="10" fill="none" stroke-linecap="round"/>
-  <!-- Front legs -->
-  <ellipse cx="82" cy="258" rx="16" ry="22" fill="#2D6A4F"/>
-  <ellipse cx="82" cy="258" rx="11" ry="17" fill="#40916C"/>
-  <ellipse cx="138" cy="258" rx="16" ry="22" fill="#2D6A4F"/>
-  <ellipse cx="138" cy="258" rx="11" ry="17" fill="#40916C"/>
-  <!-- Paws -->
-  <ellipse cx="82" cy="272" rx="14" ry="7" fill="#2D6A4F"/>
-  <ellipse cx="138" cy="272" rx="14" ry="7" fill="#2D6A4F"/>
-  <!-- Toes -->
-  <circle cx="74" cy="274" r="3.5" fill="#1B4332"/>
-  <circle cx="82" cy="276" r="3.5" fill="#1B4332"/>
-  <circle cx="90" cy="274" r="3.5" fill="#1B4332"/>
-  <circle cx="130" cy="274" r="3.5" fill="#1B4332"/>
-  <circle cx="138" cy="276" r="3.5" fill="#1B4332"/>
-  <circle cx="146" cy="274" r="3.5" fill="#1B4332"/>
-  <!-- Head -->
-  <ellipse cx="110" cy="130" rx="52" ry="48" fill="#2D6A4F"/>
-  <ellipse cx="110" cy="128" rx="46" ry="43" fill="#40916C"/>
-  <!-- Ears -->
-  <polygon points="65,100 55,60 90,90" fill="#2D6A4F"/>
-  <polygon points="155,100 165,60 130,90" fill="#2D6A4F"/>
-  <polygon points="68,98 62,68 88,91" fill="#52B788"/>
-  <polygon points="152,98 158,68 132,91" fill="#52B788"/>
-  <!-- Inner ear -->
-  <polygon points="69,96 64,72 86,90" fill="#E07A5F" opacity="0.7"/>
-  <polygon points="151,96 156,72 134,90" fill="#E07A5F" opacity="0.7"/>
-  <!-- Eyes - glowing amber -->
-  <ellipse cx="93" cy="125" rx="12" ry="14" fill="#1B2A1E"/>
-  <ellipse cx="127" cy="125" rx="12" ry="14" fill="#1B2A1E"/>
-  <ellipse cx="93" cy="125" rx="9" ry="11" fill="#F4A261"/>
-  <ellipse cx="127" cy="125" rx="9" ry="11" fill="#F4A261"/>
-  <ellipse cx="93" cy="125" rx="5" ry="9" fill="#1a1a1a"/>
-  <ellipse cx="127" cy="125" rx="5" ry="9" fill="#1a1a1a"/>
-  <circle cx="96" cy="121" r="2.5" fill="white"/>
-  <circle cx="130" cy="121" r="2.5" fill="white"/>
-  <ellipse cx="93" cy="125" rx="14" ry="16" fill="none" stroke="#F4A261" stroke-width="1.5" opacity="0.5"/>
-  <ellipse cx="127" cy="125" rx="14" ry="16" fill="none" stroke="#F4A261" stroke-width="1.5" opacity="0.5"/>
-  <!-- Nose -->
-  <polygon points="110,142 105,137 115,137" fill="#E07A5F"/>
-  <!-- Mouth -->
-  <path d="M105 143 Q110 149 115 143" stroke="#1B4332" stroke-width="1.5" fill="none"/>
-  <!-- Whiskers -->
-  <line x1="55" y1="138" x2="100" y2="143" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
-  <line x1="52" y1="143" x2="100" y2="145" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
-  <line x1="55" y1="148" x2="100" y2="147" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
-  <line x1="120" y1="143" x2="165" y2="138" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
-  <line x1="120" y1="145" x2="168" y2="143" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
-  <line x1="120" y1="147" x2="165" y2="148" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
-  <!-- Collar -->
-  <rect x="72" y="165" width="76" height="12" rx="6" fill="#E63946"/>
-  <circle cx="110" cy="171" r="5" fill="#FFD166"/>
-  <circle cx="110" cy="171" r="3" fill="#FFF0A0"/>
-</svg>
-
-<!-- DOG - Premium illustrated -->
-<svg style="position:fixed;bottom:0;right:2%;z-index:1;filter:drop-shadow(0 4px 12px rgba(27,58,45,0.2))" width="240" height="300" viewBox="0 0 240 300" fill="none">
-  <!-- Body -->
-  <ellipse cx="120" cy="210" rx="70" ry="72" fill="#6B9080"/>
-  <ellipse cx="120" cy="205" rx="62" ry="64" fill="#84A98C"/>
-  <!-- Tail wagging -->
-  <path d="M50 220 Q15 190 25 155 Q30 135 48 145 Q55 152 42 162 Q35 178 62 205" stroke="#6B9080" stroke-width="20" fill="none" stroke-linecap="round"/>
-  <path d="M52 220 Q18 192 27 157 Q32 138 48 147" stroke="#A4C3B2" stroke-width="12" fill="none" stroke-linecap="round"/>
-  <!-- Back legs -->
-  <ellipse cx="82" cy="270" rx="18" ry="26" fill="#6B9080"/>
-  <ellipse cx="82" cy="270" rx="13" ry="20" fill="#84A98C"/>
-  <ellipse cx="158" cy="270" rx="18" ry="26" fill="#6B9080"/>
-  <ellipse cx="158" cy="270" rx="13" ry="20" fill="#84A98C"/>
-  <!-- Paws -->
-  <ellipse cx="82" cy="287" rx="16" ry="8" fill="#6B9080"/>
-  <ellipse cx="158" cy="287" rx="16" ry="8" fill="#6B9080"/>
-  <!-- Toes -->
-  <circle cx="72" cy="290" r="4" fill="#4A7B6F"/>
-  <circle cx="82" cy="292" r="4" fill="#4A7B6F"/>
-  <circle cx="92" cy="290" r="4" fill="#4A7B6F"/>
-  <circle cx="148" cy="290" r="4" fill="#4A7B6F"/>
-  <circle cx="158" cy="292" r="4" fill="#4A7B6F"/>
-  <circle cx="168" cy="290" r="4" fill="#4A7B6F"/>
-  <!-- Head -->
-  <ellipse cx="120" cy="125" rx="58" ry="54" fill="#6B9080"/>
-  <ellipse cx="120" cy="122" rx="52" ry="49" fill="#84A98C"/>
-  <!-- Floppy ears -->
-  <ellipse cx="68" cy="118" rx="20" ry="35" fill="#52796F" transform="rotate(-15 68 118)"/>
-  <ellipse cx="172" cy="118" rx="20" ry="35" fill="#52796F" transform="rotate(15 172 118)"/>
-  <ellipse cx="70" cy="119" rx="14" ry="28" fill="#6B9080" transform="rotate(-15 70 119)"/>
-  <ellipse cx="170" cy="119" rx="14" ry="28" fill="#6B9080" transform="rotate(15 170 119)"/>
-  <!-- Eyes -->
-  <ellipse cx="100" cy="118" rx="13" ry="13" fill="#2D3A35"/>
-  <ellipse cx="140" cy="118" rx="13" ry="13" fill="#2D3A35"/>
-  <ellipse cx="100" cy="118" rx="10" ry="10" fill="#8B6914"/>
-  <ellipse cx="140" cy="118" rx="10" ry="10" fill="#8B6914"/>
-  <ellipse cx="100" cy="118" rx="6" ry="6" fill="#1a1a1a"/>
-  <ellipse cx="140" cy="118" rx="6" ry="6" fill="#1a1a1a"/>
-  <circle cx="103" cy="114" r="3" fill="white"/>
-  <circle cx="143" cy="114" r="3" fill="white"/>
-  <!-- Eyebrows -->
-  <path d="M88 106 Q100 102 112 106" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M128 106 Q140 102 152 106" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <!-- Snout -->
-  <ellipse cx="120" cy="142" rx="24" ry="18" fill="#52796F"/>
-  <ellipse cx="120" cy="140" rx="20" ry="15" fill="#6B9080"/>
-  <!-- Nose -->
-  <ellipse cx="120" cy="132" rx="12" ry="9" fill="#2D3A35"/>
-  <ellipse cx="116" cy="130" rx="4" ry="3" fill="rgba(255,255,255,0.25)"/>
-  <!-- Mouth -->
-  <path d="M108 143 Q120 152 132 143" stroke="rgba(255,255,255,0.5)" stroke-width="2" fill="none"/>
-  <path d="M120 143 L120 152" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
-  <!-- Tongue -->
-  <ellipse cx="120" cy="155" rx="10" ry="8" fill="#E07A5F" opacity="0.9"/>
-  <line x1="120" y1="151" x2="120" y2="162" stroke="#C05040" stroke-width="1.5" opacity="0.7"/>
-  <!-- Whiskers -->
-  <line x1="68" y1="137" x2="102" y2="142" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>
-  <line x1="65" y1="143" x2="102" y2="145" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>
-  <line x1="138" y1="142" x2="172" y2="137" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>
-  <line x1="138" y1="145" x2="175" y2="143" stroke="rgba(255,255,255,0.5)" stroke-width="1.2"/>
-  <!-- Collar -->
-  <rect x="80" y="162" width="80" height="13" rx="6.5" fill="#2471A3"/>
-  <circle cx="120" cy="168" r="6" fill="#FFD166"/>
-  <circle cx="120" cy="168" r="4" fill="#FFF0A0"/>
-  <!-- Tag text -->
-</svg>
-
-<!-- Floating paw prints -->
-<svg style="position:fixed;top:12%;left:20%;z-index:1;opacity:0.18;transform:rotate(20deg)" width="50" height="55" viewBox="0 0 50 55">
-  <ellipse cx="25" cy="40" rx="13" ry="11" fill="#2D6A4F"/>
-  <circle cx="11" cy="26" r="6" fill="#2D6A4F"/>
-  <circle cx="25" cy="21" r="6" fill="#2D6A4F"/>
-  <circle cx="39" cy="26" r="6" fill="#2D6A4F"/>
-</svg>
-<svg style="position:fixed;top:20%;right:22%;z-index:1;opacity:0.15;transform:rotate(-15deg)" width="40" height="44" viewBox="0 0 50 55">
-  <ellipse cx="25" cy="40" rx="13" ry="11" fill="#40916C"/>
-  <circle cx="11" cy="26" r="6" fill="#40916C"/>
-  <circle cx="25" cy="21" r="6" fill="#40916C"/>
-  <circle cx="39" cy="26" r="6" fill="#40916C"/>
-</svg>
-<svg style="position:fixed;top:65%;left:8%;z-index:1;opacity:0.14;transform:rotate(35deg)" width="35" height="38" viewBox="0 0 50 55">
-  <ellipse cx="25" cy="40" rx="13" ry="11" fill="#52B788"/>
-  <circle cx="11" cy="26" r="6" fill="#52B788"/>
-  <circle cx="25" cy="21" r="6" fill="#52B788"/>
-  <circle cx="39" cy="26" r="6" fill="#52B788"/>
-</svg>
-<svg style="position:fixed;top:55%;right:8%;z-index:1;opacity:0.12;transform:rotate(-25deg)" width="32" height="35" viewBox="0 0 50 55">
-  <ellipse cx="25" cy="40" rx="13" ry="11" fill="#2D6A4F"/>
-  <circle cx="11" cy="26" r="6" fill="#2D6A4F"/>
-  <circle cx="25" cy="21" r="6" fill="#2D6A4F"/>
-  <circle cx="39" cy="26" r="6" fill="#2D6A4F"/>
-</svg>
-
-<!-- Login box -->
-<div class="login-box" style="position:relative;z-index:2;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(27,58,45,0.15),0 0 0 1.5px rgba(45,122,79,0.15)">
-  <div class="login-logo">
-    <img id="login-logo-img" src="data:image/jpeg;base64,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" alt="Pet Point Logo" style="width:80px;height:80px;border-radius:18px;box-shadow:0 4px 16px rgba(27,58,45,0.2)">
-    <h1 style="font-size:24px;margin-top:12px">Pet Point Grooming</h1>
-    <p style="color:var(--muted);font-size:12px;margin-top:2px">Management System 2026</p>
-  </div>
-  <div id="login-alert" class="alert"></div>
-  <label id="lbl-username">Username</label>
-  <input id="login-user" placeholder="Enter username" autocomplete="off">
-  <label id="lbl-password">Password</label>
-  <input id="login-pass" type="password" placeholder="Enter password">
-  <button class="btn btn-primary" id="login-btn" onclick="doLogin()" style="margin-top:4px">
-    <span id="login-btn-text">Login</span>
-  </button>
-  <div style="text-align:center;margin-top:12px">
-    <button class="lang-btn" onclick="toggleLang()" style="background:var(--teal);padding:6px 18px;font-size:13px;border-radius:8px">🌐 عربي / English</button>
-  </div>
-  <div style="margin-top:18px;padding-top:14px;text-align:center;border-top:1px solid var(--border)">
-    <div style="font-size:10px;color:var(--muted);line-height:2.2;letter-spacing:0.3px">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAIAAgADASIAAhEBAxEB/8QAHQABAAICAwEBAAAAAAAAAAAAAAcIBQYBBAkDAv/EAEQQAAIBAwIDBQUGBAQDCAMAAAABAgMEBQYRByExCBJBUYETImFxkRQyQqGxwRUWI1Jic5LCM4LRJCY0Q1NyorLh4vD/xAAcAQEAAgMBAQEAAAAAAAAAAAAABAYCAwUBBwj/xAA1EQEAAgEDAgMECgICAwEAAAAAAQIDBAURITESQVEGE3GBFCIyYZGhscHR8AdCM+EVJEPx/9oADAMBAAIRAxEAPwCmQBZnsi9nR68lS1rrWhVpaZpz3tLR7xlkZJ8231VJNbNrnJ7pbbNgRtwV4Ga84qV1Ww1jGyw8Zd2rlbzeFBbdVDlvUl8Ip7Pq0XB4cdkXhjpyjTrahjd6qv0k5SupulbqXnGlB9PhKUiwGPs7THWNCwsLWhaWlvBU6NCjBQhTiuSjGK5JLyR9wMDgdF6PwFONPCaVwmNjFbL7LYU6b+qjzM7GMYxUYpRS6JI5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABxKMZRcZJST6powWe0Xo/P05U83pXCZKMls/tVhTqP6uPIzwArxxH7IvDHUdGpW09G70rftNxlazdW3cvOVKb6fCMolPuNXAzXnCuu62ZsY3uHlLu0srZ7zoPfop8t6cvhJLd9Gz1IPhkLKzyNjXsMha0bu0uIOnWoVoKcKkWtnGUXyafkwPG4Fme112dHoOVXWuiqFWrpmpPe7tFvKWOk3yafV0m3sm+cXsnvumVmAlDsy8MKvFTihaYatGccPaL7XlasXs1Qi17ifhKbaivFJt+B6g46ztMdYW9hYW9K2tLalGlQo0o92FOEVtGKS6JJJFf+wPoqnpzgvHUNaio3+o7iVzKTXvKhBuFKPy5Tmv8AMLDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfDI2dpkbC4sL+3pXNpc0pUq9GrHvQqQktpRafVNNo8vu01wwq8K+KF3haMZyw92vteKqye7dCTfuN+MoNOL8Xsn4nqQV47fGiqeo+C8tQ0aKlf6cuI3MZJe86E2oVY/LnCb/AMsCaeHWJhgOH+nsJTioxsMZb2+y84U4xf5ozxxGKjFRitklskcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADA8RcTDP8P8AUOEqRUo3+MuLfZ+c6cor82Z44lFSi4yW6a2aA5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADR+IvFLSOh6UoZO+Ve+23jZW+06r+fhFfF7HkzEd2vJlpir4rzxDeDC6l1XpvTdD22czVlYrbdRq1UpS+Uer9EVT192gtYZ+VS3w0o4Kye6XsH3q0l8Zvp6JER3l1c3txO5vLircVpveVSrNylJ/Fvmapyx5OHqN+pXphrz98rY6n7SmkbCUqWFx99l5rpNr2NN+sve/+JHma7TGr7luOLxOLsIPo5qVWa9d0vyILBrnJaXIy7vq8n+3HwSRkOOPE28k/wDvHK3i/wANG2pR/wBu5iqvFTiJUbctX5Rb/wBtXu/oaYDzxT6oltVnt3vP4y3OlxV4iU3vHV+Uf/uq979TLY/jlxNs5L/vG7iP9ta2pS/Pu7kbAeKfUrqs9e15/GU6YXtM6utmo5TEYu/gurgpUZP13a/IkTTHaT0hfzjSzVhfYib6z29tTXrH3v8A4lRwexktCXi3fVY/9ufi9D9Naq05qSh7bB5myv47c1Sqpyj849V6mZPN2yu7qyuYXNnc1ravB7xqUpuMo/JrmS7oHtB6wwMqdtm3HO2S5P2z7taK+E119U/mbYyx5uvp9+pbpmrx98dv7+K4oNJ4dcUNJa4pRji79Ub3bedncbQqr5LpJfFbm7GyJ57O7jy0y18VJ5gAB6zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOpmMnYYfHVsjk7ulaWlGPeqVasu7GKMZrrVuF0bgauXzVyqVKC2hBc51ZeEYrxZS/izxNzvEDKSndVJW2Mpyf2ayhL3Yrwcv7pfH6GF7xVztfuOPSRx3t6fykXi72hL/JyrYnRTnY2fOM76S2q1V/gX4F8evyIEuK1a4rTr16s6tWb705zk5Sk/Nt9T5gj2tNu6najVZdTbxZJ5AAYo4DZ9H6B1dq2a/gWEubmlvs6zj3KS+c5bIlzTXZizFeMKmoNQWlknzdK2putL5bvZL8zKKzPZLwaHUZ+tKzMK+AuDiezdoK1ineXGWv5+PfrxhF+kY7/AJmdt+BfDCitv5c9p8Z3dZ/7jP3Vk+uxame8xHz/AOlIQXeuOBfDCstv5c9n8YXdZf7jA5bs3aDuot2VxlrCfh3K0ZxXpKO/5j3Vi2xamO0xPz/6U/BYPUvZizVvGdTT+ftL5LmqVzTdGXyTW6f5ERaw0Hq3SU2s7hLq1p77Kso9+lL5TjuvzMJrMd0DPotRg63rMQ1kAGKI+lvWrW9eFe3qzo1YPvQnCTjKL8010J94RdoS+x0qOJ1s53tpuowv4rerTX+NfiXx6/Mr8DKtpr2SNNqsumt4sc8PR7EZKxy2Oo5DG3VK6ta0e9Tq0pd6Mkdoonwl4nZ3h/k4u2qSusXUlvcWU5e7JeMo/wBsvj4+Jc/Q+q8NrHA0sxhblVqM1tOD5TpS8YyXgyRS8WXHQbjj1deO1vT+GdABm6IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGE1vqjFaQ07cZvL11ToUY+7Hf3qkvCMV4tmWvbmhZWla7uqsKNCjBzqTk9lGKW7bKQcdOI11r7U8pUZzp4e0k4WdHpv51GvN/kvUwvbww5+466NJj5j7U9mI4oa7zGvdQzyWRqOFCDcbW2i/cow8l5vzZqQBGmeVIve2S02tPMyAEs8EODmR1zXhlMp7SxwMJc6m207hr8MPh5yERMzxDPBgvnvFKRzLStB6I1HrXJqxwNhOts17WtL3aVJecpdF8upZ/ht2f9L6ehTvNQd3OZFc2qkdreD+EPxfOX0JT03gsTpzE0sXhbGlZ2lJbKEF1fm31b+LMkSK44jutmi2fFgjxZPrW/J+LejRt6MKFvSp0aUFtGEIqMYrySXQ/YBsdgAAAAAD53FCjc0J0LijTrUpraUKkVKMl5NPqfQAQzxJ7P2mNQQq3mntsHkHu1GC3t5v4x/D/wAv0Kwa60VqLReTdjnrCdBtv2dZc6dVecZdGegpjNTYDEakxNXFZqxpXlrVWzjNc4vzi+qfxRrtjiezj63Z8WePFj+rb8nnUCV+N3B3JaFuJ5PG+0vsDUl7tXbedBv8M/8Ar4kUEeYmJ4lU82C+C80vHEht3C3XuX0FqGGRx83UtptRurVv3K0P2fkzUQInhhjyWx2i1Z4mHodorU2K1dp62zeHrqrb1o81+KnLxjJeDRmijvAniPc6C1NFV5znhrySheUuvd8qiXmvzXoXdtLihd2tK6tqsKtGrBTpzi91KLW6aZJpbxQu+3a6NXj5/wBo7vqADN0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwPEDUlrpLSGQz9213bWk3CO+3fm+UYr5tpBje0UrNrdoQd2t+IcqNOOhcVX2lUSqZGcX0j1jT9er+G3mVmO7nMneZnMXeVv6rq3V1VlVqyfi29/odIiWt4p5UHWaq2pzTkn5fAANn4Y6Qvdb6vtMHaJxhOXeuKu3KlTX3pM8iOWilLXtFa95bp2e+FNXW+U/i2WhOngbSa776O4mvwL4ebLj2Vrb2VpStLSjToW9GChTpwW0YxXRJHV03hsfp/CWuHxdCNG1tqahCK8fNvzb6syBKpXwwvOg0NdJj4jvPeQA4nJRi5PoluzJOaBxe4lWeh7SFvRpRusrXj3qVFvaMF/dL4fAr/keL2v7y6ddZyVst91To0oKK+qb+ph+J+ar57XWVv603JfaJU6ab+7CL2SX039TWit6nWZMl58M8Q+4bD7MaPR6Ws5ccWvMczMxz38o57cJz4b8dchC+pWGrlTr29SSiruEVGUPjJLk18tiw9CtSr0IV6M41KdSKlCUXumn0ZQUtR2Zs/Wy2hp2FzUc6mOq+yi2+fca3S9CZt+rve3u7zz6Kz7Z+zmn02GNbpq+HrxaI7de0x6JSr1adCjOtWnGnTpxcpyk9kkurK88SOOmQnfVbDSKp0Lem3F3c4qUpvzinyS+e5uvaYz9bE6FjY29RwqZGr7KTT59xLdoqsNw1d6W93SePU9jPZzT6nDOt1NfF14rE9uneZ9W+47i9r+zulXeclcrfd061KDi/ok/oT/AMIOJVnri1nbVqUbXK0Id6rRT3jOPTvR+HwKhmy8Ms1XwOucVkKM3Fe3jTqJP70JPZp/Xf0Iem1mTHePFPMLNvvsxo9ZpbTixxW8RzExHHbynjvyuwDiElKCkujW5yWR8PfG+tba+s6tneUKde3rQcKlOa3jKL6popr2guFdXQ2W/ieLhOrgrub9m+roSf4Jfsy6BjdTYTH6iwV3hspQjWtbmm4TTXNeTXxT5mF6+KEDX6Gurx8f7R2l50g2XiXpG+0Vq67wd6m1Tl3qFXblUpv7sl6GtEaY4Ue9LUtNbd4CzvZI4hyuaEtDZWvvUoxdTHTk+sPxU/Tqvhv5FYjvYHKXmEzVplsfVdK6tKsatOS80+nyfQ9rbwzykaLVW02aMkfP4PRoGD0HqO01ZpLH56za7l1SUpR337k+kov5PdGcJa+1tF6xavaQABkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABWLtk6tdW+x+j7Wr7lGP2q7SfWT3UIv5Ld+qLNV6sKFCdapJRhCLlJvwSPPniJnqmp9b5bOTk5K6uZSp7+FNcoL/AEpGrLPEcOJvmo93gjHHe36QwAAI6oBcrsuaIjprQ8czd0e7kcslVba5wpfhj69foVg4SablqziBisN3W6VSsp12vCnHnL8kX7o0qdGjCjSgoU6cVGEUuSS5JG7FXzWLYdL4rTmny6Q/QOKk404SqTkoxit22+SRBPETjw7O+q4/SdrRr+zbjK7rpuLf+GK23Xx3Pc2emGObyve2bRq90yTj01eeO89oj4ync/NWPfpTh/dFoqzjuPGtbe5VS5VhdUt/epyo93l8GnyJv4YcSsNrei6NJOzyVOO9S1qS3bXnF+KNWHW4s0+GJ6uhufstuO24/e5KxNY7zE88fHzVS1lZVsdqvK2deLjOld1Fs/LvPZ/TYxBYftE8Nr3I3j1VgbZ16ncSvKFNe89uk0vHlyfyK9VITpzcKkJQkns01s0cDU4bYck1l9g2PdMW5aOmWk9eIiY9J8/+n5LH9kyzq09P5a9mmqda4jGHx2XMg7Rmk8zqvLU7DFWk595r2lVx9ynHzbLi6I07aaW01aYW05xox9+e335vrImbZhtOT3nlCte3W6Ycej+hxPN7THT0iOvX4os7WVnVq6dxN7BN06NxKM35brkVvLx6209aao01d4a75Rrw9ye3OEl0kU61npPM6Uy1SwytrOHdb9nVS9ypHzTG54bRk955Sewm6Ycmj+hzPF6zPEesT16fBgTLaPsquR1Vi7KjFynVuqcdl5d5bv6GLpwnUmoU4SlJvZJLdssJ2d+G17jrxaqz1s6E1BqzoVFtJb9ZteHLkvmQ9NhtmyRWFm3zdMW26O+W89eJ4j1n+9060Y9ylCH9sUj9Gi8UOJmG0RSVConeZKpHenawltsvByfgvzIRyHHjW1e5dS3Vha0t/dpxo97l8W3zO/m1uLDPhmer4/tnsruO5Y/e46xFZ7TM8c/DzWoBBPDrjur2+pY7VdrRt3UajG7o7qCf+KL6L47k6wlGcFOElKMlumujRtw56Zo5pLnbntGr2zJGPU1457T3ifhKHu1NoiOo9EvOWlHfI4lOpulznR/EvTr9SnJ6S3FGncUKlCtBTpVIuE4vpJNbNFAuK2nJ6U19lcK01TpV3Ki3405c4v6M8y181D37S+G0Zo8+ktXABpV5Y/sa6scLnI6OuqvuzX2u0TfRrZTivyf1LMnnzw1z89Ma6xGbhJxjbXMXV28ab5TX+ls9BKNSNWjCrBpxnFSTXimScU8xwuGx6j3mCaT3r+j9AA2O0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANG49Zp4HhPnbyE+5VqW/2em/HvVGocvruUQLY9s3JO30Ni8bGWzur7vyXnGEX+7RU4j5Z6qfvuTxanw+kAANTirFdi7BqrlMzqGpDf2FONvSb85Pdtei29SzxEHZJx0bPhTG57vv3l3UqN+aWyX6Ml8lUjiq9bXi93paR69fxRp2jc9WwvDyrRtqjp1r+qrdST5qLTcvyTRU0s92qbCrc6FtLumm42t5GU/gmnH9WisJwdzmZzcT6PvHsJTHXa/FXvNp5/vwDv6ey15g8za5WwqypXFvUU4tfp8joA58TMTzC43pW9ZraOYlevS+WpZ3Ttjl6OyhdUY1Nl4PxXo90fDJaV01kq/wBov8Djbmt1c6lvFyfze3M1rs/KquFOJ9rv0n3N/wC3vv8A/JvxbMc+8x1m0d4fnbW1totZlx4bTHhtMdJ8ol18fYWOOt1b2Fnb2tFdIUaahH6I7BhNW6qwWlrF3eav6dvF/ch1nP4Rj1ZDGpO0NWdWVPT+EgoLpVu5bt/8sf8AqYZdTiw9LSlbfsW47p9fDSZj1npH4z3+SwR18hYWWQt3b39nQuqL6wrU1OP0ZVyXHbXTn3lLHRX9qt3t/wDYzuB7QuXpVIxzWGtbmn+KVtJ05L0e6f5EeNywW6S7F/Yjd8UeOkRMx6W6/nwnXG6V01ja/wBosMDjbat1U6dvFSXye3I+urMvSwGm7/MVknG1oymk/F+C9XsYjQvEHTWsKW2LvO7cpbztq3u1I+nj80YrtCqq+FWU9nvtvT7+3l3l++xItkrGKb4/RxcOkz5Nxx6bWcxM2iJ8XPPEz96qGeyl5msvc5S/qyq3FxUc5yfx8DogFWmZmeZfoGlK0rFaxxEBbXs7Z6vm+HdCFzN1K1jUdu5N82lzj+TRUotD2WbCrbaBuLqpFqN1dynDfxSSj+qZ0NsmYzcR6Kb7eY8dtr8Vu8Wjj+/BLhV3toYNUc1h9QU4bK5pSt6rXjKD3Tfo0vQtEQ72uscrzhYrtR3nZ3lOe/kmmn+x3rxzV8I3XH7zS3j06/gpyACKooXy4F5p57hVgr6c+/VjbKhUfi5U33G3/p3KGltOxpkncaByOOk93aXzcV5RnFP9e8bcU9Xa2LJ4dRNfWE6AAkLgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKw9ti6lLK6cs0/dhRrVGvm4L9iupPPbQk3rfDw8FYN/WbIGIuT7UqLus86u/wDfIABg569PZ3oRocHNPxj+KjOT+bqSN/NB7PNWNXg5p6UfChKL9KkjfiZXtD6FpP8Agp8I/RjtTYe0z+Cu8Rex71C5puEvNeTXxRTTXmksrpDOVcdkaMlBNujWS9yrDwaf7eBdw6Obw+LzdlKzytjQvKD/AA1I77fJ9V6EPV6ONRHMdJhb/Zz2kybPea2jxY7d484n1j+9VEDM6O05ktUZ63xWNoSqVKsl35be7CPjJvwSLN1eCOgp3PtlZ3cFvv7ONf3f03/M3PTWnMJpy0+y4XH0bSm/vOK96Xzb5s5+Pa7+L689Fy13+QNLGGfotJm89ueIiPznl99O4uhhMFZYm2/4VrRjTT89lzfq92a9xW1xZ6I0/K6mo1b6tvG1ob/el5v4I2jJ3ttjsfXvrupGlQoQc5yb6JFM+J+rbnWGqrjJVJSVvFuFtTb5Qgun16k/WamNPj4r3nsqXsxslt41k5M/WletvvmfL5+f3MTqXO5TUWVq5LLXU7ivUfWT5RXkl4IxgBXJmZnmX23HjrjrFKRxEdoAAeMn3sLu6sLund2depQr0pd6FSEtnFlluGGs6HEzSV/pXOOMMl9mcJyS5VY+E0vNPbdFYjKaVzl7pzP2mYsJuNa3mpbb8pLxi/g0SdNqJw269p7uJvmz03LB9Xpkr1rb0mP2/wD19NX6dyWmM5cYrJ0JU6lKT7smuU4+Ek/FMw5dC1o6X4k6TtL+8saF7b1obrvL36UvFbrmmmYOjwS0FTufbOzuqi339nKv7v5Lf8yXfbLTPOOYmJVzT+3eDHT3etx2rkr0niImOY+ccK3aB0jldYZyljsfRl7PdOvXa9ylDxbf7FytOYm0wWDtMTZR7tC2pqEfN7eL+LP1hcRjMLZRs8VY0LShH8FOO2/xfm/md46Wk0kaeOe8ypHtH7SZN4vFYjw469o+/wBZ/vQI87R1FV+DeeTX3KcJr0qRJDI+7RdVUeDefb/FShFetSJLt2lUdX/wX+E/oowACG+ehY3sTXTV9qSyb5Sp0KiXyc0/2K5E+9i2TWsM3HwdlFv/AFmeP7UOjtU8aun98lqwASl5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFW+2tayhqHT95s+7VtqtPf4xlF/7ivZbDtm4t3GicXlYR3dne9yT8ozi/3USp5GyR9ZSN4p4dXb7+J/IABrcxc3snZCN5wloUO9vK0uqlJryXKS/VktlaOxZm1Gvm9P1J85xhc0k/h7sv1X0LLkqk81he9sye80tJ9On4AAM08ANZ4mapoaQ0ldZaptKsl3LeH99R9F+5je0UrNp7Q3afBk1GWuLHHNrTxCJu09raSnDSGPrctlUvZRf0h+5AJ2cpfXOSyFe/vKrq3FebnUm/Fs6xVtRmnNkm8v0Ds2149s0ldPTvHefWfOf75AANDqAAAAACWezrrn+X8//AshW2x1/NKDk+VOr4P5Pp9C0ie63RQOLcZKUW009014Fs+AWtnqrSytLyp3slj0qdVt85x/DL/+8jtbZqf/AJW+T5h7dbHxP/kMUfdb9p/afkkkAHYfMwiHta5CNnwnqW/e2ld3dOml5pbt/oiXisvbSzane4TT9OfOlCdzVS85PZb/AE/MwvPFXP3TJ7vS3n16firiACKooWH7FFrKWb1Febe7Tt6NNP4ylJ/sV4LZ9jTFO20JkcpOOzvb1xi/OMIpfq5GzHH1nU2eni1dfu5n8k6gAkrsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANL434N6g4W5zHwh36qtnWpLxc4e+tvpsULPSapCNSnKnJbxkmmvgef3FDAS0xr7MYVwcYULmTpcv/Ll70PyaNGaPNWfaDD1plj4fx+7WgAaVbbpwT1N/KnEjFZOc3G3dX2Nx/lz5P6b7l84SjOCnFqUZLdNeKPNlNppp7NF1+zbrWGrNAULW4qqWRxiVvXTfOUUvcl9OXobsVvJY9h1PEzhnz6x+6UAAb1nCvva2v6v2jCYxNql3alaS85ckv1ZYIgrtZYarVsMTnKcHKFCUqFVrwUtmm/VfmQ9wiZ09uFm9j7UrvGLx/fx8eJ4V3ABWX3UAAAAAAAAJQ7M9/VtOJVO3jJ+zuredOcfB7c0/wAiLyXey5h6t5ritlXF+wsrd7y25d+XJL6bknSRM5q8eri+0VqV2vPOTt4Z/Hy/NaAAFpfn5xOcacJTnJRjFbtvokUJ4zaleq+I2VysZuVD2rpUP8uPJfoWj7S+tY6V0DWsraqo5HKJ0KKT5xh+OX05epSxtt7vm2aMtvJWN+1PMxhjy6z+zgAGlXAvvwWwb09wwwWNnDuVVbKrVXlOfvS/NlMOFOn5an4hYbDqHep1bmMq3L/y4+9L8k16l/4RUIRhFbKK2SN+GPNZPZ/D1vln4fz+zkAG5ZgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKv8AbM0z7HKYvVdCn7lxB2lw0vxR5wfqu99C0Bp3GXS8dXcOspiYwUrj2Xtbb4VYc4/Xbb1MbxzHCFuGn+kae1I794+ShAP1OMoTlCcXGUXs0+qZ+SIoQbpwd1vc6E1lb5SDlKzqP2V3ST+/Tb5+q6o0sHsTx1bMeS2O8Xr3h6PYnIWmVxtvkbCvGvbXFNVKVSL5STO0VH7NvFn+WLuGmM/Xf8IuJ/0K0n/4ab/2v8i21KpCrTjUpzjOElvGUXumvMlVt4oXrQ6ymrx+KO/nD9GO1LhrLUGEusRkKftLe4g4y815NfFGRB7MRMcSn48lsdovSeJjrCmPEfQWZ0ZlZ0LmjOtZSbdC6jH3Zx+Pk/gagX3vLW2vbeVvd29K4ozW0oVIKUX6M06/4T6BvKzrVMBShJ9fZ1JRX0TONl2qeecc9PvfTdu/yBSMcV1mOfFHnXjr8p44U8pU6lWahShKcn0UVu2bhguGGt8xCNS1wVenTl0nX2ppr/mLVae0VpXASU8VhLShUXSo496a9ZbtGwGWPao/3t+DVrv8hWmeNJi4++38R/Kq0eBGuHDvOFlGX9rroxGY4Ra8xkJVJ4WdxCPPe3mqn5LmXABuna8Mx0mXMx+325VtzatZj4T/ACoTeWl1Z1pUbu3q0KkXs41IuLX1PgXnz+msBnodzL4m1u/KU4e8v+ZczW6HCPh/RrqtHAU5NPdRlVm19NyJbar8/VtHCw4P8haSac5sVot93Ex+cwqvpHS2a1TkoWOIs6laUn709toQXm34It3w00fZ6L03Sxlu1Ury9+4rbc6k/H08EZzFYzH4q2VtjbKhaUV+ClBRX5dTtk/SaKuD609ZVH2h9qc27xGKseHHHl5z8f4DqZjI2eJxlxkshXjQtbem6lScnySR2a1SnRpSq1ZxhTgnKUpPZJeZUbtIcWf5pvJaawNd/wAGt5/1qsX/AOJmv9q8PMmWt4YUfXaymkx+Ke/lDQ+L+trrXWsrnLVHKNrB+ztKTf3KafL1fVmnAEWZ5UXJktktN7d5AD9U4TqVI04RcpyaUUlzbZ4wWJ7GWmfa3+V1XXp+7RirS2bX4ntKb+ndXqyzpqPB/TEdI8PcVh3BRrxpKpcNeNWXvS/N7ehtxLpHEcL7t+n+j6etJ7+fxkABkmgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHzWwAFJe0ppD+VeJFzVt6bjY5Pe6ocuSk378fSXP5NEYl0+07o/+Z+Hda8tqXfv8U3c0tlzlBL34/Tn80ilhFyV4lR91030fUTx2nrAADBzQm7gbxvvNMewwOpJTu8Pv3adZ7upb/wDWPwIRB7EzE8w36fUZNPfx454l6O4fJ2GXx9LIY26pXVtVj3oVKct00dsoTw34j6l0Leqpirp1LST/AKtpVe9Ofp4P4otNw3426S1bTp29zcRxWRfJ0LiW0ZP/AAy6MkVyRK3aLdsOojw2+rb+9koA4hKM4KcJKUWt0090zk2OqAAAAAABxOcKcHOcoxilu23skBydPM5TH4fHVchk7ula2tKPenUqS2SI54kcbtJaThUtrSvHLZFclRoS3jF/4pdCrPEfiNqXXV86uWu3C1i/6VrSe1OC+Xi/izXbJEOVrd2w6ePDX61v73b3xy43XuqvbYHTsp2mG37tSqt1UuF8fKPwIUAI8zMzzKo6jUZNRfx5J5kAB40BKPZn0h/NHEe3uLim5WOL2uq3Lk5J+5H68/RkXF1uzNo/+VuHVC5uaXcv8ptc1t1zjFr3I+i5/Nszx15l09q03v8AURz2jrKUgASl3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+asIVacqdSKlCScZJ+KZQ3jPpGpo3X9/i1BxtZz9tavbk6cnul6c16F9CGO1bor+P6LWes6XevsTvOWy5ypP7y9Ovoa8leYcneNL7/B4o716/wAqfAAjKWAAAcptPdPZo4AG86K4r620mo0sflqla2i/+Bcf1Iem/Ql/TXadouMKeoNPyjLo6lrU3Xz2ZWcGcXtCbg3DUYOlLdPxXWxPHvhzfRTqZOtZyfVV6LW3qZ634rcPK8e9DVePX/um1+xQsGXvZdCu/wCeO9YlfS44rcPKEd56rx7+U2/2MBluPnDqxg3TyVe8kuioUW9/UpUB72S2/aie1YhZfUvadpKMqentPycuiqXVTl89kRBrXirrbVilTyGXqUraT/4Fv/Th+XU0cGM3mXPz7hqM/S9un4OW23u3u2cAGCEAAAAAN24J6RnrLiBY42UHK0pS9vdPbkqcX09XsvUvjThGnTjCEVGMVskvBEO9lbRX8u6J/jd5S7t/ltqnNc40l91evX1JjJOOvELps+l9xg8U97df4AAbHWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPnc0aVzb1LetBTpVIuE4tcmn1PoAKF8ZtH1dFa8vcX3GrSpJ1rSW3J05PkvToaWXL7UGh/5o0TLK2dHvZHFJ1YbLnOn+KP7+hTQi3r4ZUXctJ9GzzEdp6wAAwc8AAAAAAAAAAAAAAAAAAA3bgpo6prXXtljZQbs6UlXu5bclTi+nq+RpJc7sx6H/lXREcleUe7ksolWqbrnCn+GP05+pnSvil0Ns0n0nPET2jrKV7ejTt6FOhRgoU6cVGMV0SR+wCUvQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD81IRqU5U5xUoyWzT8UUe7QGiJ6L15cU6FNrG3zde0e3JJv3o+j/ACaLxkfcedDQ1xoevbUIR/iNpvXtJP8AuS5x+TXIwvXxQ5u6aP6Th6fajrCjAP3XpVKFadGtCUKlOTjOMls01yaZ+CKpAAA8AAAAAAAAAAAAAAA+lvRq3FenQowlUq1JKEIxW7k29kkHqROz3oiWs9eUFcUnLG2DVe6bXKWz92Hq/wAky78IxhCMIJRjFbJLwRoXArQ8ND6Ht7SrGP8AEbnateTX9zX3fklyN+JVK+GF32vR/RsMc/anrIADN0gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVF7Vmgv4DqeOpsfR7uPycv6qiuVOt4/6uvz3IRPQniBpmy1fpO+wV7Fd24pvuT25wmvuyXyZQbUeIvcBnLzD5Cm6dza1XTmmuu3Rr4NcyPkrxPKm7xo/cZfeV+zb9WPABqccAAAAAAAAAAAAACceyhoP+OaklqnIUd7DGy2oKS5VK3/AOq/MiDTGGvdQ56zw2Ppupc3dVU4Lbpv1b+CXMvzoLTVlpLStjgrGKULemlOW3Oc/wAUn8WzbjrzPLs7No/f5feW+zX9WdABIXEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACvHa30B9rsYa2xlDetbpU76MV96n4T9P0+RYc+GQtLe/sa9ld0o1aFeDp1ISW6aa2ZjavijhG1emrqcU47PN4G58Y9FXGhta3WLlGTs6jdWzqP8AFTb5L5roaYRZjjooOTHbHeaW7wAA8YAAAAAAAAABuvBnRNfXOtbbGqMlZUmqt5UXSNNPp830PYjmeGzHjtkvFK95Tf2SNAfYcdPWmTobXF1FwsoyXONPxn6/oWEPjY2tCxs6Nna040qFGChThFbJJLZI+xLrHEcL7pNNXTYox1AAepIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACNu0FoKGt9F1fs1NfxWxTrWkvGXnD1RSKrTnSqzpVYOE4ScZRa2aa6pnpMVK7VfD3+BZ5arxlDbH5Ce1xGK5Uq3n8pfr8zTlr5q7vmi8Ue/p5d/wCUGAA0KuAAAAAAAA/dGnUrVoUaUJTqTkoxjFbtt9Ei7/AHQVPQ+i6ULinH+KXqVa7l4ptcofJIhPspcPf41nHq3J0N7CwltaxkuVSt5/KP6/Itkb8VfNaNj0Xhj39479v5AAbliAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMTq/AWGp9O3mEyNNTt7qm4Pzi/CS+KZlgHlqxaJiezzz11pq/wBJaovcFkINVbebUZbcqkPwyXzRgy33ak4evUunVqPG0XLJ42D78YrnVo9WvmupUF8nsyLevhlRNw0k6XNNfLyAAYIIAABntBaZvtX6ps8FYRbnXn789uVOC+9J/JGCSbey6lwey7w9emNNvUGSo93KZKCcYyXOlR6pfN9TOlfFKdt+knVZor5R3SlpPBWOmtPWeFx1JU7e1pqEfNvxb+LZlACUvdaxWIiOwAA9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHE4xnBwnFSjJbNNcmimHaR4eS0dquWSsKLWIyMnOlsuVKfWUP3RdA17iHpWw1lpS7wd/FbVY70qm3OnNfdkvUxvXxQgbjo41WLwx3js8+AZTVWDv9N5+7wuSpOnc21RwluuTXg18GYsiKNas1niQAyuksDf6m1DZ4XG0nUuLmoorlyivGT+CQK1m08R3SN2a+HctX6pWVyFFvEY6SnPvLlVqdYw/dlzIxjGKjFJRS2SXgYHh/pew0fpWzwePglGjD+pPbnUm/vSfqZ8lUr4YXnbtHGlxRXznuAAzTwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQh2pOHH8w4P+aMVQ3ydhD+tGK51qS/VoqM+T2PSecYzg4TipRktmmuTRTTtJ8OZaP1M8tjqL/g+Qm5Q7q5UanVw+XijTlp5wrO96HifpFI+P8ojS3eyLedl3hx/LeB/mXK0NspkIJ0oyXOjSfT5NkRdmnhxLV2pFmclRbw+OmpNSXKtU8I/JdWXIjGMYqMUlFLZJeAxU85Nk0PP/sXj4fy5ABuWYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPzUnCnBzqTjCK6yk9kgP0DWsvr/RWJbjf6oxVKS6xVxGcl6R3ZquQ488NLRuMc1Vumv/Rtpv8A+yR5NohovqsFPtXiPmk8wuttNY3VunLrB5Sn3qFeOykvvQl4SXxRGF12k9BUm1Rs81X+VCC/WZ0p9pvSSfuYTLv59xfuYzevqjX3DR2ia2vExKXtGacx2lNO2uDxdPuW9vHbd9Zy8ZP4szBBMO03pJv38Jl18u4/3O7a9pPQVV7VrTNUPnQg/wBJiL19Sm4aOIitbxEQmkEY4/jzw0u5KMs1VtW//Wtpr9EzacRr7ReWajj9T4qrJ9IO4jCT9JbMyi0Sk01WC/2bxPzbKD805wqQU6c4zi+ji90z9HreAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHVy+Rs8TjLjJZCvC3tbem6lWpJ7KMV1DyZiI5l2ZNRi5SaSXNt+BF+v+OWidKzqWtG5lmL+HJ0bNpxi/wDFPovTdkBcZuNGa1ld18biK1XHYJNxjTg+7OuvObXg/wC3p8yJTTbL6K3rN94ma4I+c/smfVvaM1tlZTp4eFphaD5L2UPaVdvjKXL6JEY53VWpM7Uc8vnMhet+FWvKS9FvsjDA1TaZ7uFm1ebN9u0y5k3J7ybb+JwAYo4AAAAAHKbi902n8DgAZrBas1LgqiniM7kLJrwpV5Jeq32ZJ2ku0ZrXFyhTzNO0zVBcm6kFSq7fCUeX1TIXBlFpjskYdXmw/YtMLs6A446J1VOna1bqWHv58lQvGlGT8oz6P12fwJPi1JJppp800ea65dCXODPGrNaPuqGMzNarkcE2ouE33qluvODfgv7foba5fV3tHvnMxXPHz/lcwHWxV/aZTHW+RsK8K9rcU1UpVIvdSi1yZ2TcscTExzAAA9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD+2Nk7uz4f2VjbylGle3qhXa8Yxi5JfVInA07jDoulrrRN1hu9GndL+ra1H0jUXTf4Po/mY2jmOiLrcd8unvSneYUIB38/iMjgstXxWVtalrd0Jd2dOa29V5r4nQIigTExPEgADwAAAAAAAAAAAAAADIaew2Sz+Xt8TibWpdXdeXdhCC/N+SXmHsRMzxC1fY8yd3e8OruzuJSlSsr2VOi2+kXFS2+rZNpqHCHRtLQ2ibTCqcalx/xbqouk6kuvoui+Rt5LrHEdV/0WO2LT0pfvEAAMkoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGn8SeHOmteWXssxa9y6hHajeUdo1afr4r4PkVk1/wAAtZ6dnUuMVSWdsVu1O2W1WK+NPr/p3LlgwtSLOfq9twarraOJ9Yebl1bXFpXlQuqFWhWg9pU6kHGUX8U+h8j0P1FpXTmoqXss3hbG/W2ydainJfKXVehGeoezloPIOU8dPI4mb5pUa3fh9Jpv8zVOKfJws2w5q/8AHMT+SngLDZnsv5anKTxGp7OvHwjc0JU39YuX6Gq3/Z44j2zfsbbHXiXT2N2lv/rUTGaWjyQL7bqqd6T+v6IjBINzwW4m27alpW4kl4wrUpfpI6c+FHEaL2ekcn6U0/0Zj4Z9GmdLnjvSfwlpQN1hwo4jTey0jk/Wml+rO5bcFuJtw0o6VuIJ+NStSj+sj3wz6EaXPPak/hKPgS7YdnfiPcte2tsdZp9fbXae3+hSNqw3Zfys5ReX1PaUI+MbahKo/rJx/Q9ilvRuptuqv2pP6fqrwfW0trm7rxt7S3q1603tGnTg5Sl8ki32nuzloPHOM8hLIZaa5tVq3cg/SCT/ADJN07pbTunaPssJhbGwjts3RopSfzfV+plGKfN0MOw5rf8AJaI/NU3QHAHWWoZ07jL01grF7NyuFvWkvhT6r/m2LN8N+HWmtB2PscNad65mtq13V96rU+b8F8FyNvBtrSKu5pNtwaXrWOZ9ZAAZugAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADiMlKKlF7prdM5MDw6y0M/w/09m6clKN/jLe43XnOnGT/NmeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHEpKMXKT2SW7ZyYHiNloYDh/qHN1JKMbDGXFxu/OFOUkvqgIW7A+taeo+C8dPVqylf6cuJW0ot+86E250pfLnOC/wAssOeW/Zl4n1eFfFC0zVaU5Ye7X2TK0orduhJr30vGUGlJeL2a8T1Bx15aZGwt7+wuKVzaXNKNWhWpS70KkJLeMk11TTTA+4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABXjt8a1p6c4Ly09RrKN/qO4jbRin7yoQanVl8uUIP8AzCwGRvLTHWFxf39xStrS2pSq161WXdhThFbyk2+iSTZ5fdprifV4qcULvNUZTjh7RfZMVSktmqEW/fa8JTbcn4rdLwAi8sz2Re0W9BypaK1rXq1dM1J/9ku3vKWOk3zTXV0m3u0ucXu1vu0VmAHsjj7y0yNjQv7C6oXdpcQVSjXozU4VIvmpRkuTT80fc8t+CvHPXnCuuqOGvo3uHlLvVcVebzoPfq4c96cvjFrd9Uy4PDjtdcMdR0adHUMrvSt+0lKN1B1bdy8o1YLp8ZRiBYcGBwOtNH5+nGphNVYTJRkt19lv6dR/RS5GdjKMoqUWmn0aYHIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADiUoxi5SaSXVtmCz2tNH4CnKpm9VYTGxit39qv6dN/Ry5gZ4+GQvLTHWNe/v7qhaWlvB1K1etNQhTiublKT5JLzZX/iP2uuGOnKNSjp6V3qq/SajG1g6VupeUqs10+MYyKfcauOevOKld0czfRssPGXepYqz3hQW3Rz571JfGTez6JAST2uu0W9eSq6K0VXq0tM057Xd2t4yyMk+SS6qkmt0nzk9m9tkiswAH//Z" alt="Pet Point">
+      <h1>Pet Point Grooming</h1>
+      <p>Management System 2026</p>
+    </div>
+    <div id="login-alert" class="alert"></div>
+    <label id="lbl-username">Username</label>
+    <input id="login-user" placeholder="Enter username" autocomplete="off">
+    <label id="lbl-password">Password</label>
+    <input id="login-pass" type="password" placeholder="Enter password">
+    <button class="btn btn-primary" id="login-btn" onclick="doLogin()"><span id="login-btn-text">Login</span></button>
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="toggleLang()" style="background:var(--teal);color:#fff;border:none;border-radius:8px;padding:6px 18px;font-size:13px;font-weight:600;cursor:pointer">🌐 عربي / English</button>
+    </div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:10px;color:var(--muted);line-height:2.2">
       © 2026 <b style="color:var(--navy)">Pet Point</b> · All Rights Reserved<br>
-      Intellectual Property &amp; System Design<br>
+      Intellectual Property &amp; System Design by<br>
       <b style="color:var(--teal-dark);font-size:11px">Hesham El-Khalifa</b>
     </div>
   </div>
 </div>
 </div>
-</div>
 
+<!-- ═══ APP ═══ -->
 <div id="page-app" class="page">
 <div class="topbar">
   <div class="topbar-left">
@@ -548,7 +193,7 @@ body.rtl th,body.rtl td{text-align:right}
   <div class="topbar-right">
     <span id="topbar-user" style="opacity:0.75;font-size:12px"></span>
     <button class="lang-btn" onclick="toggleLang()">🌐 AR/EN</button>
-    <button class="logout-btn" id="logout-btn" onclick="doLogout()">Logout</button>
+    <button class="logout-btn" onclick="doLogout()" id="logout-btn">Logout</button>
   </div>
 </div>
 
@@ -558,86 +203,53 @@ body.rtl th,body.rtl td{text-align:right}
   <div class="card">
     <div class="card-title">✂️ <span id="t-new-session">New Grooming Session</span></div>
     <div id="cashier-alert" class="alert"></div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div><label id="t-date">Date</label><input type="date" id="f-date"></div>
-      <div>
-        <label id="t-branch">Branch</label>
-        <select id="f-branch">
-          <option value="">-- Select --</option>
-          <option>AlRai</option>
-          <option>Aswaq AlQurain</option>
-        </select>
+      <div><label id="t-branch">Branch</label>
+        <select id="f-branch"><option value="">-- Select --</option><option>AlRai</option><option>Aswaq AlQurain</option></select>
       </div>
     </div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div><label id="t-grm1">Groomer 1 *</label><select id="f-grm1"><option value="">-- Select --</option></select></div>
-      <div><label id="t-grm2">Groomer 2</label><select id="f-grm2"><option value="">-- None --</option></select></div>
-      <div><label id="t-grm3">Groomer 3</label><select id="f-grm3"><option value="">-- None --</option></select></div>
-      <div><label id="t-grm4">Groomer 4</label><select id="f-grm4"><option value="">-- None --</option></select></div>
-      <div><label id="t-grm5">Groomer 5</label><select id="f-grm5"><option value="">-- None --</option></select></div>
+      <div><label>Groomer 2</label><select id="f-grm2"><option value="">-- None --</option></select></div>
+      <div><label>Groomer 3</label><select id="f-grm3"><option value="">-- None --</option></select></div>
+      <div><label>Groomer 4</label><select id="f-grm4"><option value="">-- None --</option></select></div>
+      <div><label>Groomer 5</label><select id="f-grm5"><option value="">-- None --</option></select></div>
     </div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div>
-        <label id="t-cname">Client Name</label>
-        <input id="f-cname" placeholder="Client full name">
-      </div>
-      <div>
-        <label id="t-phone">Client Phone *</label>
-        <input id="f-phone" type="tel" placeholder="e.g. 96512345678" oninput="onPhoneInput()">
-      </div>
+      <div><label id="t-cname">Client Name</label><input id="f-cname" placeholder="Client name"></div>
+      <div><label id="t-phone">Client Phone *</label><input id="f-phone" type="tel" placeholder="e.g. 96512345678" oninput="onPhoneInput()"></div>
     </div>
     <div id="client-hint" class="client-hint"></div>
-
-    <label id="t-visit">Visit Type</label>
-    <select id="f-visit" style="margin-bottom:14px">
-      <option value="Visit">Visit</option>
-      <option value="Delivery">Delivery</option>
-    </select>
-
-    <!-- SERVICES -->
+    <label>Visit Type</label>
+    <select id="f-visit" style="margin-bottom:14px"><option value="Visit">Visit</option><option value="Delivery">Delivery</option></select>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <label style="margin-bottom:0" id="t-services">Services & Pets *</label>
-      <button class="add-service-btn" onclick="addServiceLine()" id="t-add-svc">+ Add Service</button>
+      <label style="margin-bottom:0">Services & Pets *</label>
+      <button onclick="addSvcLine()" style="background:var(--teal);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">+ Add Service</button>
     </div>
-    <div id="service-lines"></div>
-
+    <div id="svc-lines"></div>
     <div id="session-total" style="background:var(--navy);color:#fff;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:none">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-        <span id="t-total-rev">Total Revenue</span><span id="st-rev">0.000 KD</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-        <span id="t-total-free">Total Free</span><span id="st-free" style="color:#F39C12">0 units</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px" id="discount-row" style="display:none">
-        <span id="t-discount-row">Discount</span><span id="st-discount" style="color:#F39C12">0.000 KD</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800">
-        <span id="t-total-paid">Total Charged</span><span id="st-paid" style="color:#A9DFBF">0.000 KD</span>
-      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Total Revenue</span><span id="st-rev">0.000 KD</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Free Units</span><span id="st-free" style="color:#F39C12">0</span></div>
+      <div id="st-disc-row" style="display:none;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Discount</span><span id="st-disc" style="color:#F39C12">0.000 KD</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px"><span>Total Charged</span><span id="st-charged" style="color:#A9DFBF">0.000 KD</span></div>
     </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
-        <label id="t-discount">Discount %</label>
-        <input type="number" id="f-discount" min="0" max="20" value="0" placeholder="0-20%" oninput="applyDiscount()" style="margin-bottom:8px">
-        <div id="discount-hint" style="font-size:11px;color:#8B6914;display:none;margin-top:-6px;margin-bottom:8px">⚠️ Max discount is 20%</div>
+        <label>Discount %</label>
+        <input type="number" id="f-discount" min="0" max="20" value="0" placeholder="0-20%" oninput="onDiscountInput()" style="margin-bottom:8px">
+        <div id="disc-warn" style="font-size:11px;color:#8B6914;display:none;margin-bottom:8px">⚠️ Max 20%</div>
       </div>
       <div>
-        <label id="t-discount-val">Discount Value</label>
-        <div style="padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-weight:800;color:var(--red-dark);background:#FADBD8;margin-bottom:8px" id="discount-val-display">0.000 KD</div>
+        <label>Discount Amount</label>
+        <div id="disc-display" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-weight:800;color:var(--red-dark);background:#FADBD8;margin-bottom:8px">0.000 KD</div>
       </div>
     </div>
-    <label id="t-notes">Notes (optional)</label>
+    <label>Notes (optional)</label>
     <textarea id="f-notes" placeholder="Any notes..."></textarea>
-    <button class="btn btn-primary" onclick="saveSession()" id="t-save-btn">💾 Save Session</button>
+    <button class="btn btn-primary" onclick="saveSession()">💾 Save Session</button>
   </div>
-  <div class="copyright">
-    © 2026 <b>Pet Point</b> — Grooming Management System<br>
-    Designed & Developed by <b>Hesham El-Khalifa</b> | All rights reserved
-  </div>
+  <div class="copyright">© 2026 <b>Pet Point</b> — Grooming Management System<br>Designed &amp; Developed by <b>Hesham El-Khalifa</b> | All rights reserved</div>
 </div>
 </div>
 
@@ -652,47 +264,47 @@ body.rtl th,body.rtl td{text-align:right}
     <button class="tab" onclick="switchTab('users')" id="tab-users">⚙️ Users</button>
   </div>
 
+  <!-- DASHBOARD -->
   <div id="sec-dashboard" class="tab-section active">
-    <div class="filter-row" style="justify-content:space-between;align-items:center">
-      <select id="dash-month" onchange="renderDashboard()" style="max-width:180px;margin-bottom:0">
-        <option value="all">All Months</option>
-      </select>
-      <button onclick="exportCSV()" style="background:#2D7A4F;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬇️ Export CSV</button>
+    <div class="filter-row">
+      <select id="dash-year" onchange="renderDashboard()" style="max-width:110px;margin-bottom:0"></select>
+      <select id="dash-month" onchange="renderDashboard()" style="max-width:160px;margin-bottom:0"><option value="all">All Months</option></select>
+      <button onclick="exportCSV()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:auto">⬇️ Export CSV</button>
     </div>
     <div class="kpi-grid" id="dash-kpis"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="card"><div class="card-title">🏪 Branches</div><div id="dash-branches"></div></div>
-      <div class="card"><div class="card-title">🏆 <span id="t-top-groomers">Top Groomers</span></div><div id="dash-groomers"></div></div>
+      <div class="card"><div class="card-title">🏆 Top Groomers</div><div id="dash-groomers"></div></div>
     </div>
     <div class="card"><div class="card-title">📅 Monthly Breakdown</div><div class="table-wrap" id="dash-monthly"></div></div>
   </div>
 
+  <!-- RECORDS -->
   <div id="sec-records" class="tab-section">
     <div class="filter-row">
-      <select id="rec-month" onchange="renderRecords()"><option value="all">All Months</option></select>
-      <select id="rec-branch" onchange="renderRecords()">
-        <option value="all">All Branches</option>
-        <option>AlRai</option>
-        <option>Aswaq AlQurain</option>
+      <select id="rec-month" onchange="renderRecords()" style="margin-bottom:0"><option value="all">All Months</option></select>
+      <select id="rec-branch" onchange="renderRecords()" style="margin-bottom:0">
+        <option value="all">All Branches</option><option>AlRai</option><option>Aswaq AlQurain</option>
       </select>
     </div>
     <div class="card" style="padding:0"><div class="table-wrap" id="records-table"></div></div>
   </div>
 
+  <!-- COMMISSIONS -->
   <div id="sec-commissions" class="tab-section">
     <div class="filter-row">
-      <select id="comm-month" onchange="renderCommissions()" style="max-width:180px"></select>
+      <select id="comm-month" onchange="renderCommissions()" style="max-width:180px;margin-bottom:0"></select>
     </div>
     <div id="comm-content"></div>
   </div>
 
+  <!-- CLIENTS -->
   <div id="sec-clients" class="tab-section">
-    <div style="margin-bottom:12px">
-      <input id="client-search" placeholder="🔍 Search by phone or name..." oninput="renderClients()" style="margin-bottom:0">
-    </div>
+    <input id="client-search" placeholder="🔍 Search by phone or name..." oninput="renderClients()" style="margin-bottom:12px">
     <div id="clients-content"></div>
   </div>
 
+  <!-- USERS -->
   <div id="sec-users" class="tab-section">
     <div class="card">
       <div class="card-title">➕ Add New User</div>
@@ -705,66 +317,115 @@ body.rtl th,body.rtl td{text-align:right}
       </div>
       <label>Branch</label>
       <select id="new-branch" style="margin-bottom:14px">
-        <option value="all">All Branches</option>
-        <option>AlRai</option>
-        <option>Aswaq AlQurain</option>
+        <option value="all">All Branches</option><option>AlRai</option><option>Aswaq AlQurain</option>
       </select>
       <button class="btn btn-primary" style="width:auto;padding:10px 28px" onclick="addUser()">Add User</button>
     </div>
     <div class="card"><div class="card-title">👥 Current Users</div><div id="users-list"></div></div>
   </div>
 
-  <div class="copyright">
-    © 2026 <b>Pet Point</b> — Grooming Management System<br>
-    Designed & Developed by <b>Hesham El-Khalifa</b> | All rights reserved
+  <div class="copyright">© 2026 <b>Pet Point</b> — Grooming Management System<br>Designed &amp; Developed by <b>Hesham El-Khalifa</b> | All rights reserved</div>
+</div>
+</div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div id="rec-modal" class="modal-overlay" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div id="rec-modal-title" style="font-size:15px;font-weight:800"></div>
+      <button class="modal-close" onclick="document.getElementById('rec-modal').style.display='none'">✕</button>
+    </div>
+    <div id="rec-modal-body" style="padding:20px"></div>
   </div>
 </div>
-</div>
+
+<!-- EDIT USER MODAL -->
+<div id="edit-modal" class="modal-overlay" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-header">
+      <div style="font-size:15px;font-weight:800">✏️ Edit User — <span id="edit-modal-uname" style="opacity:0.7"></span></div>
+      <button class="modal-close" onclick="document.getElementById('edit-modal').style.display='none'">✕</button>
+    </div>
+    <div style="padding:20px">
+      <input type="hidden" id="edit-uid">
+      <label>Full Name</label><input id="edit-name" placeholder="Full name">
+      <label>New Password <span style="font-weight:400;text-transform:none;font-size:11px">(leave empty to keep current)</span></label>
+      <input id="edit-pass" type="password" placeholder="New password">
+      <label>Role</label>
+      <select id="edit-role" style="margin-bottom:14px"><option value="cashier">Cashier</option><option value="admin">Admin</option></select>
+      <label>Branch</label>
+      <select id="edit-branch" style="margin-bottom:14px">
+        <option value="all">All Branches</option><option value="AlRai">AlRai</option><option value="Aswaq AlQurain">Aswaq AlQurain</option>
+      </select>
+      <div id="edit-msg" style="font-size:13px;padding:8px 12px;border-radius:8px;display:none;margin-bottom:12px"></div>
+      <button onclick="saveEditUser()" style="width:100%;background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save Changes</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const SUPABASE_URL='https://zyjxsrwbfujnkniwwias.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5anhzcndiZnVqbmtuaXd3aWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjQzMTksImV4cCI6MjA5NDE0MDMxOX0.FDyCwHPtdbE1Ryjk3R8hT6L0LgqNi7-RGqihGSe6wzI';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const SB_URL='https://zyjxsrwbfujnkniwwias.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5anhzcndiZnVqbmtuaXd3aWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjQzMTksImV4cCI6MjA5NDE0MDMxOX0.FDyCwHPtdbE1Ryjk3R8hT6L0LgqNi7-RGqihGSe6wzI';
+const sb=supabase.createClient(SB_URL,SB_KEY);
 
-const SERVICES={"Full Service":12.5,"Basic Shower":8.5,"Trimming Package":8.5,"Dry Shower - Kitten":4.0,"Dry Shower - Adult Cat":6.0,"Trimming Only":6.0,"Anal Gland Cleaning":4.0,"Cleaning Eyes/Ears":2.0,"Remove Hair Balls":2.0,"Teeth Brush":1.5,"Bottom Shaving Area":3.0,"Deshedding":2.0,"Trimming Paws":2.0,"Full Service - Small Dog":12.0,"Full Service - Medium Dog":13.0,"Full Service - Large Dog":15.0,"Full Service - XL Dog":17.0,"Basic Shower - Small Dog":8.0,"Basic Shower - Medium Dog":9.0,"Basic Shower - Large Dog":10.0,"Basic Shower - XL Dog":12.0,"Nail Trimming":2.0};
+const SVCS={"Full Service":12.5,"Basic Shower":8.5,"Trimming Package":8.5,"Dry Shower - Kitten":4.0,"Dry Shower - Adult Cat":6.0,"Trimming Only":6.0,"Anal Gland Cleaning":4.0,"Cleaning Eyes/Ears":2.0,"Remove Hair Balls":2.0,"Teeth Brush":1.5,"Bottom Shaving Area":3.0,"Deshedding":2.0,"Trimming Paws":2.0,"Full Service - Small Dog":12.0,"Full Service - Medium Dog":13.0,"Full Service - Large Dog":15.0,"Full Service - XL Dog":17.0,"Basic Shower - Small Dog":8.0,"Basic Shower - Medium Dog":9.0,"Basic Shower - Large Dog":10.0,"Basic Shower - XL Dog":12.0,"Nail Trimming":2.0};
 const GROOMERS=["Helal Ahmed","Mahmoud Amir","Eric Recardo","Ralph","Oliver","Yeshi","Johary","Warren","Tabreez","Juvy"];
-const MONTHS=["May","June","July","August","September","October","November","December"];
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const FS_FREE=3,BS_FREE=5,COMM=0.10;
 
-let currentUser=null,lang='en',allRecords=[],serviceLineCount=0;
+let CU=null,lang='en',allRecs=[],allUsers=[],svcCount=0;
 
+// ── TRANSLATIONS ─────────────────────────────────────────────────────────────
 const T={
-en:{login:'Login',username:'Username',password:'Password',logout:'Logout',newSession:'New Grooming Session',date:'Date',branch:'Branch',grm1:'Groomer 1 *',grm2:'Groomer 2 (Sharing)',grm3:'Groomer 3 (Sharing)',grm4:'Groomer 4 (Sharing)',grm5:'Groomer 5 (Sharing)',cname:'Client Name',phone:'Client Phone *',services:'Services & Pets *',addSvc:'+ Add Service',visit:'Visit Type',notes:'Notes (optional)',saveBtn:'💾 Save Session',totalRev:'Total Revenue',discount:'Discount %',discountVal:'Discount Value',discountRow:'Discount',totalFree:'Total Free',totalPaid:'Total Charged',dashboard:'📊 Dashboard',records:'📋 Records',commissions:'💸 Commissions',clients:'👥 Clients',users:'⚙️ Users',topGroomers:'Top Groomers',revenue:'Revenue',paid:'Paid (after free)',pets:'Pets',commission:'Commission',freeFS:'Free FS',freeBS:'Free BS',freeValue:'Free Value',allMonths:'All Months',visits:'Visits',groomer:'Groomer',searchPhone:'🔍 Search by phone or name...',addUser:'Add New User',currentUsers:'Current Users',delete:'Delete',protected:'Protected',noData:'No data found',newClient:'New client',savedOk:'Session saved!',errorFill:'Please fill all required fields.',errorLogin:'Incorrect username or password.',weekLabel:['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'],totalPets:'Total Pets',totalPaidLbl:'Total Paid',lastVisit:'Last Visit',freeGiven:'Free Given',serviceHistory:'Service History',times:'Times',avgPrice:'Avg Price',service:'Service',qty:'Qty'},
-ar:{login:'دخول',username:'اسم المستخدم',password:'كلمة المرور',logout:'خروج',newSession:'جلسة جروميثج جديدة',date:'التاريخ',branch:'الفرع',grm1:'الجرومر الأول *',grm2:'الجرومر الثاني (شيرينج)',grm3:'الجرومر الثالث',grm4:'الجرومر الرابع',grm5:'الجرومر الخامس',cname:'اسم العميل',phone:'تليفون العميل *',services:'الخدمات والـ Pets *',addSvc:'+ إضافة خدمة',visit:'نوع الزيارة',notes:'ملاحظات',saveBtn:'💾 حفظ الجلسة',totalRev:'إجمالي الإيرادات',discount:'خصم %',discountVal:'قيمة الخصم',discountRow:'الخصم',totalFree:'إجمالي المجاني',totalPaid:'إجمالي المدفوع',dashboard:'📊 الداشبورد',records:'📋 السجلات',commissions:'💸 العمولات',clients:'👥 العملاء',users:'⚙️ المستخدمون',topGroomers:'أفضل الجرومرية',revenue:'الإيرادات',paid:'المدفوع',pets:'Pets',commission:'العمولة',freeFS:'مجاني FS',freeBS:'مجاني BS',freeValue:'قيمة الخصم',allMonths:'كل الشهور',visits:'زيارات',groomer:'الجرومر',searchPhone:'🔍 ابحث باسم أو تليفون العميل...',addUser:'إضافة مستخدم',currentUsers:'المستخدمون الحاليون',delete:'حذف',protected:'محمي',noData:'لا يوجد بيانات',newClient:'عميل جديد',savedOk:'تم الحفظ!',errorFill:'الرجاء ملء كل الحقول.',errorLogin:'اسم المستخدم أو كلمة المرور غلط.',weekLabel:['أسبوع 1','أسبوع 2','أسبوع 3','أسبوع 4'],totalPets:'إجمالي الـ Pets',totalPaidLbl:'إجمالي المدفوع',lastVisit:'آخر زيارة',freeGiven:'وحدات مجانية',serviceHistory:'تاريخ الخدمات',times:'مرات',avgPrice:'متوسط السعر',service:'الخدمة',qty:'الكمية'}
+en:{login:'Login',username:'Username',password:'Password',logout:'Logout',
+    newSession:'New Grooming Session',date:'Date',branch:'Branch',grm1:'Groomer 1 *',
+    cname:'Client Name',phone:'Client Phone *',saveBtn:'💾 Save Session',
+    dashboard:'📊 Dashboard',records:'📋 Records',commissions:'💸 Commissions',
+    clients:'👥 Clients',users:'⚙️ Users',revenue:'Revenue',paid:'Charged (after free)',
+    pets:'Pets',commission:'Commission',freeFS:'Free FS',freeBS:'Free BS',
+    freeValue:'Free Value',allMonths:'All Months',noData:'No data found',
+    newClient:'New client',savedOk:'Session saved!',errorFill:'Please fill all required fields.',
+    errorLogin:'Incorrect username or password.',
+    weekLabel:['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'],
+    lastVisit:'Last Visit',visits:'Visits',delete:'Delete',protected:'Protected'},
+ar:{login:'دخول',username:'اسم المستخدم',password:'كلمة المرور',logout:'خروج',
+    newSession:'جلسة جروميثج جديدة',date:'التاريخ',branch:'الفرع',grm1:'الجرومر الأول *',
+    cname:'اسم العميل',phone:'تليفون العميل *',saveBtn:'💾 حفظ الجلسة',
+    dashboard:'📊 الداشبورد',records:'📋 السجلات',commissions:'💸 العمولات',
+    clients:'👥 العملاء',users:'⚙️ المستخدمون',revenue:'الإيرادات',paid:'المدفوع',
+    pets:'Pets',commission:'العمولة',freeFS:'مجاني FS',freeBS:'مجاني BS',
+    freeValue:'قيمة الخصم',allMonths:'كل الشهور',noData:'لا يوجد بيانات',
+    newClient:'عميل جديد',savedOk:'تم الحفظ!',errorFill:'الرجاء ملء كل الحقول.',
+    errorLogin:'اسم المستخدم أو كلمة المرور غلط.',
+    weekLabel:['أسبوع 1','أسبوع 2','أسبوع 3','أسبوع 4'],
+    lastVisit:'آخر زيارة',visits:'زيارات',delete:'حذف',protected:'محمي'}
 };
-
-function t(k){return T[lang][k]||k}
+const t=k=>T[lang][k]||k;
 
 function toggleLang(){
   lang=lang==='en'?'ar':'en';
   document.documentElement.lang=lang;
   document.body.classList.toggle('rtl',lang==='ar');
-  applyTranslations();
-}
-
-function applyTranslations(){
-  const ids=['lbl-username','lbl-password','t-new-session','t-date','t-branch','t-grm1','t-grm2','t-grm3','t-grm4','t-grm5','t-cname','t-phone','t-visit','t-notes','t-save-btn','t-top-groomers','t-total-rev','t-total-free','t-total-paid','t-add-svc','t-services'];
-  const keys=['username','password','newSession','date','branch','grm1','grm2','grm3','grm4','grm5','cname','phone','visit','notes','saveBtn','topGroomers','totalRev','totalFree','totalPaid','addSvc','services'];
-  ids.forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=t(keys[i]);});
+  ['lbl-username','lbl-password'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el)el.textContent=t(i===0?'username':'password');
+  });
   if(document.getElementById('login-btn-text'))document.getElementById('login-btn-text').textContent=t('login');
   if(document.getElementById('logout-btn'))document.getElementById('logout-btn').textContent=t('logout');
-  const tabs=['dashboard','records','commissions','clients','users'];
-  tabs.forEach(k=>{const el=document.getElementById('tab-'+k);if(el)el.textContent=t(k);});
-  if(document.getElementById('client-search'))document.getElementById('client-search').placeholder=t('searchPhone');
+  ['dashboard','records','commissions','clients','users'].forEach(k=>{
+    const el=document.getElementById('tab-'+k);if(el)el.textContent=t(k);
+  });
 }
 
 function showAlert(id,msg,type){
   const el=document.getElementById(id);
-  el.textContent=msg;el.className=`alert alert-${type} show`;
+  if(!el)return;
+  el.textContent=msg;el.className='alert alert-'+type+' show';
   setTimeout(()=>el.classList.remove('show'),4000);
 }
 
+// ── AUTH ──────────────────────────────────────────────────────────────────────
 async function doLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
@@ -775,19 +436,23 @@ async function doLogin(){
     const {data,error}=await sb.from('users').select('*').eq('username',u).eq('password',p).single();
     if(error||!data){showAlert('login-alert',t('errorLogin'),'error');}
     else{
-      currentUser=data;
+      CU=data;
       document.getElementById('topbar-user').textContent=(data.name||data.username)+' — '+(data.role==='admin'?'Admin':'Cashier');
       document.getElementById('page-login').classList.remove('active');
       document.getElementById('page-app').classList.add('active');
-      if(data.role==='admin'){document.getElementById('view-admin').style.display='block';initAdminDropdowns();await loadAllRecords();renderDashboard();}
-      else{document.getElementById('view-cashier').style.display='block';initCashierForm();}
+      if(data.role==='admin'){
+        document.getElementById('view-admin').style.display='block';
+        initDropdowns();await loadRecs();renderDashboard();
+      }else{
+        document.getElementById('view-cashier').style.display='block';initCashier();
+      }
     }
   }catch(e){showAlert('login-alert','Connection error.','error');}
-  btn.innerHTML=`<span id="login-btn-text">${t('login')}</span>`;btn.disabled=false;
+  btn.innerHTML='<span id="login-btn-text">'+t('login')+'</span>';btn.disabled=false;
 }
 
 function doLogout(){
-  currentUser=null;allRecords=[];
+  CU=null;allRecs=[];
   document.getElementById('page-app').classList.remove('active');
   document.getElementById('page-login').classList.add('active');
   document.getElementById('view-admin').style.display='none';
@@ -796,159 +461,121 @@ function doLogout(){
   document.getElementById('login-pass').value='';
 }
 
-function initCashierForm(){
+// ── CASHIER ───────────────────────────────────────────────────────────────────
+function initCashier(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   ['f-grm1','f-grm2','f-grm3','f-grm4','f-grm5'].forEach((id,i)=>{
     const sel=document.getElementById(id);
-    const first=i===0?'-- Select --':'-- None --';
-    sel.innerHTML=`<option value="">${first}</option>`;
+    sel.innerHTML='<option value="">'+(i===0?'-- Select --':'-- None --')+'</option>';
     GROOMERS.forEach(g=>{const o=document.createElement('option');o.value=g;o.text=g;sel.appendChild(o);});
   });
-  serviceLineCount=0;
-  document.getElementById('service-lines').innerHTML='';
-  addServiceLine();
+  svcCount=0;
+  document.getElementById('svc-lines').innerHTML='';
+  addSvcLine();
 }
 
-function addServiceLine(){
-  serviceLineCount++;
-  const id=serviceLineCount;
-  const svcOptions=Object.keys(SERVICES).map(s=>`<option value="${s}">${s}</option>`).join('');
+function addSvcLine(){
+  svcCount++;
+  const id=svcCount;
+  const opts=Object.keys(SVCS).map(s=>'<option value="'+s+'">'+s+'</option>').join('');
   const div=document.createElement('div');
-  div.className='service-line';
-  div.id=`svc-line-${id}`;
-  div.innerHTML=`
-    <div class="service-line-header">
-      <span style="font-size:12px;font-weight:700;color:var(--navy)">Service ${id}</span>
-      ${id>1?`<button class="remove-service-btn" onclick="removeLine(${id})">✕ Remove</button>`:''}
-    </div>
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
-      <div>
-        <label style="margin-bottom:3px">${t('service')}</label>
-        <select id="svc-${id}" onchange="calcTotal()" style="margin-bottom:8px">
-          <option value="">-- Select Service --</option>${svcOptions}
-        </select>
-      </div>
-      <div>
-        <label style="margin-bottom:3px">${t('qty')} (Pets)</label>
-        <input type="number" id="qty-${id}" min="1" value="1" oninput="calcTotal()" style="margin-bottom:8px">
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;font-size:12px">
-      <span style="color:var(--muted)">Price: <b id="price-${id}">-</b></span>
-      <span style="color:var(--muted)">Total: <b id="total-${id}">-</b></span>
-      <span style="color:#8B6914">Free: <b id="free-${id}">0</b></span>
-      <span style="color:var(--teal-dark)">Charged: <b id="charged-${id}">-</b></span>
-    </div>`;
-  document.getElementById('service-lines').appendChild(div);
+  div.className='svc-line';div.id='svc-'+id;
+  div.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<span style="font-size:12px;font-weight:700;color:var(--navy)">Service '+id+'</span>'
+    +(id>1?'<button onclick="removeSvc('+id+')" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✕ Remove</button>':'')
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">'
+    +'<div><label style="margin-bottom:3px">Service</label><select id="ss-'+id+'" onchange="calcTotal()" style="margin-bottom:6px"><option value="">-- Select --</option>'+opts+'</select></div>'
+    +'<div><label style="margin-bottom:3px">Qty (Pets)</label><input type="number" id="sq-'+id+'" min="1" value="1" oninput="calcTotal()" style="margin-bottom:6px"></div>'
+    +'</div>'
+    +'<div style="font-size:12px;color:var(--muted)">Price: <b id="sp-'+id+'">-</b> &nbsp; Total: <b id="st-'+id+'">-</b> &nbsp; <span style="color:#8B6914">Free: <b id="sf-'+id+'">0</b></span> &nbsp; <span style="color:var(--teal-dark)">Charged: <b id="sc-'+id+'">-</b></span></div>';
+  document.getElementById('svc-lines').appendChild(div);
   calcTotal();
 }
 
-function removeLine(id){
-  const el=document.getElementById(`svc-line-${id}`);
-  if(el)el.remove();
-  calcTotal();
+function removeSvc(id){
+  const el=document.getElementById('svc-'+id);if(el)el.remove();calcTotal();
 }
 
-function getActiveLines(){
+function getLines(){
   const lines=[];
-  for(let i=1;i<=serviceLineCount;i++){
-    const svcEl=document.getElementById(`svc-${i}`);
-    const qtyEl=document.getElementById(`qty-${i}`);
-    if(svcEl&&qtyEl){lines.push({id:i,svc:svcEl.value,qty:parseInt(qtyEl.value)||0});}
+  for(let i=1;i<=svcCount;i++){
+    const s=document.getElementById('ss-'+i);
+    const q=document.getElementById('sq-'+i);
+    if(s&&q&&s.value)lines.push({id:i,svc:s.value,qty:parseInt(q.value)||0});
   }
-  return lines.filter(l=>l.svc);
+  return lines;
+}
+
+function onDiscountInput(){
+  const v=parseFloat(document.getElementById('f-discount').value)||0;
+  if(v>20){document.getElementById('f-discount').value=20;document.getElementById('disc-warn').style.display='block';}
+  else{document.getElementById('disc-warn').style.display='none';}
+  calcTotal();
 }
 
 async function calcTotal(){
   const phone=document.getElementById('f-phone').value.trim();
-  const lines=getActiveLines();
-  let totalRev=0,totalFree=0,totalCharged=0;
-  
-  // Get previous records for this client once
-  let clientHistory=[];
+  const lines=getLines();
+  let totRev=0,totFree=0,totCharged=0;
+  let history=[];
   if(phone){
     const {data}=await sb.from('records').select('services,service,qty').eq('phone',phone);
-    clientHistory=data||[];
+    history=data||[];
   }
-  
   for(const l of lines){
-    const price=SERVICES[l.svc]||0;
+    const price=SVCS[l.svc]||0;
     const total=price*l.qty;
-    let free=0;
-    
-    // Only Full Service (cats) and Basic Shower (cats) get free units
     const thr=(l.svc==='Full Service')?FS_FREE:(l.svc==='Basic Shower')?BS_FREE:0;
-    
-    if(thr>0 && phone && l.qty>0){
-      // Count previous qty for this service from history
-      let prevQty=0;
-      clientHistory.forEach(r=>{
-        if(r.services&&r.services.length){
-          r.services.forEach(s=>{if(s.service===l.svc)prevQty+=s.qty||0;});
-        } else if(r.service===l.svc){
-          prevQty+=r.qty||0;
-        }
+    let free=0;
+    if(thr>0&&l.qty>0){
+      let prev=0;
+      history.forEach(r=>{
+        if(r.services&&r.services.length){r.services.forEach(s=>{if(s.service===l.svc)prev+=s.qty||0;});}
+        else if(r.service===l.svc){prev+=r.qty||0;}
       });
-      // How many free units does this visit generate?
-      free=Math.floor((prevQty+l.qty)/thr)-Math.floor(prevQty/thr);
-    } else if(thr>0 && !phone && l.qty>0){
-      // No phone entered - calculate based on qty alone (first visit)
-      free=Math.floor(l.qty/thr);
+      free=Math.floor((prev+l.qty)/thr)-Math.floor(prev/thr);
     }
-    
     const charged=Math.max(0,l.qty-free)*price;
-    totalRev+=total;totalFree+=free;totalCharged+=charged;
-    const p=document.getElementById(`price-${l.id}`);
-    const t2=document.getElementById(`total-${l.id}`);
-    const f=document.getElementById(`free-${l.id}`);
-    const c=document.getElementById(`charged-${l.id}`);
-    if(p)p.textContent=price.toFixed(3)+' KD';
-    if(t2)t2.textContent=total.toFixed(3)+' KD';
-    if(f)f.textContent=free;
-    if(c)c.textContent=charged.toFixed(3)+' KD';
+    totRev+=total;totFree+=free;totCharged+=charged;
+    const sp=document.getElementById('sp-'+l.id);
+    const st=document.getElementById('st-'+l.id);
+    const sf=document.getElementById('sf-'+l.id);
+    const sc=document.getElementById('sc-'+l.id);
+    if(sp)sp.textContent=price.toFixed(3)+' KD';
+    if(st)st.textContent=total.toFixed(3)+' KD';
+    if(sf)sf.textContent=free;
+    if(sc)sc.textContent=charged.toFixed(3)+' KD';
   }
-  const discPct=Math.min(20,parseFloat(document.getElementById('f-discount')?.value)||0)/100;
-  const discAmt=totalCharged*discPct;
-  const finalCharged=totalCharged-discAmt;
-  const st=document.getElementById('session-total');
-  if(lines.length>0){
-    st.style.display='block';
-    document.getElementById('st-rev').textContent=totalRev.toFixed(3)+' KD';
-    document.getElementById('st-free').textContent=totalFree+' units';
-    const dr=document.getElementById('discount-row');
-    if(discAmt>0){dr.style.display='flex';document.getElementById('st-discount').textContent='-'+discAmt.toFixed(3)+' KD';}
+  const discPct=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
+  const discAmt=totCharged*discPct;
+  const finalCharged=totCharged-discAmt;
+  const stEl=document.getElementById('session-total');
+  if(lines.length){
+    stEl.style.display='block';
+    document.getElementById('st-rev').textContent=totRev.toFixed(3)+' KD';
+    document.getElementById('st-free').textContent=totFree+' units';
+    const dr=document.getElementById('st-disc-row');
+    if(discAmt>0){dr.style.display='flex';document.getElementById('st-disc').textContent='-'+discAmt.toFixed(3)+' KD';}
     else{dr.style.display='none';}
-    document.getElementById('st-paid').textContent=finalCharged.toFixed(3)+' KD';
-    document.getElementById('discount-val-display').textContent=discAmt.toFixed(3)+' KD';
-  }else{st.style.display='none';}
+    document.getElementById('st-charged').textContent=finalCharged.toFixed(3)+' KD';
+    document.getElementById('disc-display').textContent=discAmt.toFixed(3)+' KD';
+  }else{stEl.style.display='none';}
 }
 
 async function onPhoneInput(){
   const phone=document.getElementById('f-phone').value.trim();
   const hint=document.getElementById('client-hint');
-  if(!phone){hint.style.display='none';return;}
+  if(!phone){hint.style.display='none';calcTotal();return;}
   const {data}=await sb.from('records').select('charged,date,client_name').eq('phone',phone);
-  if(data&&data.length>0){
+  if(data&&data.length){
     const totalPaid=data.reduce((s,r)=>s+(r.charged||0),0);
-    const name=data[0].client_name||'';
+    const name=data.find(r=>r.client_name)?.client_name||'';
     if(name&&!document.getElementById('f-cname').value)document.getElementById('f-cname').value=name;
-    hint.textContent=`✅ ${lang==='ar'?'عميل موجود':'Existing client'}${name?' — '+name:''} — ${data.length} ${t('visits')} — ${t('totalPaidLbl')}: ${totalPaid.toFixed(3)} KD`;
+    hint.textContent='✅ Existing client'+(name?' — '+name:'')+' — '+data.length+' visits — Paid: '+totalPaid.toFixed(3)+' KD';
     hint.style.display='block';
   }else{
-    hint.textContent=`🆕 ${t('newClient')}`;
-    hint.style.display='block';
-  }
-  calcTotal();
-}
-
-function applyDiscount(){
-  const disc=parseFloat(document.getElementById('f-discount').value)||0;
-  const hint=document.getElementById('discount-hint');
-  if(disc>20){
-    document.getElementById('f-discount').value=20;
-    hint.style.display='block';
-  } else {
-    hint.style.display='none';
+    hint.textContent='🆕 New client';hint.style.display='block';
   }
   calcTotal();
 }
@@ -959,293 +586,346 @@ async function saveSession(){
   const grm1=document.getElementById('f-grm1').value;
   const phone=document.getElementById('f-phone').value.trim();
   const cname=document.getElementById('f-cname').value.trim();
-  const lines=getActiveLines();
+  const lines=getLines();
   if(!date||!branch||!grm1||!phone||!lines.length){showAlert('cashier-alert',t('errorFill'),'error');return;}
-
   const groomers=[grm1,
     document.getElementById('f-grm2').value,
     document.getElementById('f-grm3').value,
     document.getElementById('f-grm4').value,
     document.getElementById('f-grm5').value
   ].filter(Boolean);
-
-  const d=new Date(date);
-  const day=d.getDate();
+  const d=new Date(date),day=d.getDate();
   const week=day<=7?'Wk1 (1-7)':day<=15?'Wk2 (8-15)':day<=22?'Wk3 (16-22)':'Wk4 (23-End)';
   const month=d.toLocaleString('en',{month:'long'});
-
-  // Process each service line
-  const servicesData=[];
-  let totalRev=0,totalFree=0,totalCharged=0;
+  const svcsData=[];
+  let totRev=0,totFree=0,totCharged=0;
   for(const l of lines){
-    const price=SERVICES[l.svc]||0;
-    const total=price*l.qty;
-    const {data:prev}=await sb.from('records').select('services').eq('phone',phone);
+    const price=SVCS[l.svc]||0,total=price*l.qty;
+    const {data:prev}=await sb.from('records').select('services,service,qty').eq('phone',phone);
     let prevQty=0;
-    if(prev)prev.forEach(r=>{(r.services||[]).forEach(s=>{if(s.service===l.svc)prevQty+=s.qty||0;});});
-    const isCatFS=(l.svc==='Full Service');const isCatBS=(l.svc==='Basic Shower');const thr=isCatFS?FS_FREE:isCatBS?BS_FREE:0;
+    if(prev)prev.forEach(r=>{
+      if(r.services&&r.services.length){r.services.forEach(s=>{if(s.service===l.svc)prevQty+=s.qty||0;});}
+      else if(r.service===l.svc){prevQty+=r.qty||0;}
+    });
+    const thr=(l.svc==='Full Service')?FS_FREE:(l.svc==='Basic Shower')?BS_FREE:0;
     const free=thr>0?Math.floor((prevQty+l.qty)/thr)-Math.floor(prevQty/thr):0;
     const charged=Math.max(0,l.qty-free)*price;
-    totalRev+=total;totalFree+=free;totalCharged+=charged;
-    servicesData.push({service:l.svc,qty:l.qty,price,total,free_units:free,charged});
+    totRev+=total;totFree+=free;totCharged+=charged;
+    svcsData.push({service:l.svc,qty:l.qty,price,total,free_units:free,charged});
   }
-
-  const discPct2=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
-  const discAmt2=totalCharged*discPct2;
-  const finalCharged2=totalCharged-discAmt2;
-  // Total pets across all services
-  const totalPets=servicesData.reduce((s,sv)=>s+(sv.qty||0),0);
-  
-  const recordData={
-    date,branch,groomers,phone,client_name:cname,
-    services:servicesData,
-    qty:totalPets,
-    total:totalRev,free_units:totalFree,charged:finalCharged2,
-    week,month,
+  const discPct=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
+  const discAmt=totCharged*discPct;
+  const finalCharged=totCharged-discAmt;
+  const totalPets=svcsData.reduce((s,sv)=>s+(sv.qty||0),0);
+  const rec={date,branch,groomers,phone,client_name:cname,services:svcsData,qty:totalPets,
+    total:totRev,free_units:totFree,charged:finalCharged,week,month,
     visit_type:document.getElementById('f-visit').value,
-    notes:document.getElementById('f-notes').value,
-    recorded_by:currentUser.username
-  };
-  // Add discount fields if they exist
-  if(discPct2>0){recordData.discount_pct=discPct2*100;recordData.discount_amt=discAmt2;}
-
-  const {error}=await sb.from('records').insert([recordData]);
-
-  if(error){
-    console.error('Save error:',error);
-    showAlert('cashier-alert','Error: '+error.message,'error');
-    return;
-  }
-  showAlert('cashier-alert',t('savedOk')+(totalFree>0?` 🎁 ${totalFree} free!`:''),'success');
-  document.getElementById('f-discount').value='0';
-  document.getElementById('discount-val-display').textContent='0.000 KD';
+    notes:document.getElementById('f-notes').value,recorded_by:CU.username};
+  if(discPct>0){rec.discount_pct=discPct*100;rec.discount_amt=discAmt;}
+  const {error}=await sb.from('records').insert([rec]);
+  if(error){showAlert('cashier-alert','Error: '+error.message,'error');console.error(error);return;}
+  showAlert('cashier-alert',t('savedOk')+(totFree>0?' 🎁 '+totFree+' free!':''),'success');
   document.getElementById('f-phone').value='';
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
+  document.getElementById('f-discount').value='0';
+  document.getElementById('disc-display').textContent='0.000 KD';
   document.getElementById('client-hint').style.display='none';
-  document.getElementById('service-lines').innerHTML='';
-  serviceLineCount=0;
-  addServiceLine();
+  document.getElementById('svc-lines').innerHTML='';
   document.getElementById('session-total').style.display='none';
+  svcCount=0;addSvcLine();
 }
 
-function initAdminDropdowns(){
+// ── ADMIN HELPERS ─────────────────────────────────────────────────────────────
+function initDropdowns(){
+  // Year selector
+  const yearSel=document.getElementById('dash-year');
+  if(yearSel){
+    const curYear=new Date().getFullYear();
+    yearSel.innerHTML='<option value="all">All Years</option>';
+    for(let y=2025;y<=curYear+2;y++){
+      yearSel.innerHTML+='<option value="'+y+'"'+(y===curYear?' selected':'')+'>'+y+'</option>';
+    }
+  }
+  // Month selectors
   ['dash-month','rec-month','comm-month'].forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
     const hasAll=id!=='comm-month';
-    sel.innerHTML=(hasAll?`<option value="all">${t('allMonths')}</option>`:'')+MONTHS.map(m=>`<option value="${m}">${m}</option>`).join('');
-    if(id==='comm-month')sel.value='May';
+    sel.innerHTML=(hasAll?'<option value="all">All Months</option>':'')+MONTHS.map(m=>'<option value="'+m+'">'+m+'</option>').join('');
+    if(id==='comm-month'){
+      const cm=new Date().toLocaleString('en',{month:'long'});
+      sel.value=MONTHS.includes(cm)?cm:'January';
+    }
   });
 }
 
-async function loadAllRecords(){
+async function loadRecs(){
   const {data}=await sb.from('records').select('*').order('created_at',{ascending:false});
-  allRecords=data||[];
+  allRecs=data||[];
 }
 
-function filterRecords(month,branch){
-  return allRecords.filter(r=>{
+function grmArr(r){
+  if(!r.groomers)return[];
+  if(Array.isArray(r.groomers))return r.groomers;
+  try{return JSON.parse(r.groomers);}catch(e){return[r.groomers];}
+}
+
+function filterRecs(month,branch,year){
+  // Get year from dashboard selector if not provided
+  if(year===undefined){
+    const ySel=document.getElementById('dash-year');
+    year=ySel?ySel.value:'all';
+  }
+  return allRecs.filter(r=>{
     const mOk=!month||month==='all'||(r.month&&r.month.toLowerCase()===month.toLowerCase());
     const bOk=!branch||branch==='all'||r.branch===branch;
-    return mOk&&bOk;
+    const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
+    return mOk&&bOk&&yOk;
   });
 }
 
-function renderDashboard(){
-  const month=document.getElementById('dash-month').value;
-  const recs=filterRecords(month);
-  const rev=recs.reduce((s,r)=>s+r.total,0);
-  const paid=recs.reduce((s,r)=>s+r.charged,0);
-  const pets=recs.reduce((s,r)=>{
-    if(r.services&&r.services.length)return s+r.services.reduce((a,sv)=>a+(sv.qty||0),0);
-    return s+(r.qty||0);
-  },0);
-  const ffs=recs.reduce((s,r)=>{
-    if(r.services&&r.services.length)return s+r.services.filter(sv=>sv.service==='Full Service').reduce((a,sv)=>a+(sv.free_units||0),0);
-    return s+(r.service==='Full Service'?r.free_units||0:0);
-  },0);
-  const fbs=recs.reduce((s,r)=>{
-    if(r.services&&r.services.length)return s+r.services.filter(sv=>sv.service==='Basic Shower').reduce((a,sv)=>a+(sv.free_units||0),0);
-    return s+(r.service==='Basic Shower'?r.free_units||0:0);
-  },0);
-  const fval=ffs*12.5+fbs*8.5;
-  const alrai=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+r.total,0);
-  const alq=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+r.total,0);
-
-  document.getElementById('dash-kpis').innerHTML=`
-    <div class="kpi"><div class="kpi-label">${t('revenue')}</div><div class="kpi-val green">${rev.toFixed(3)} KD</div></div>
-    <div class="kpi"><div class="kpi-label">${t('paid')}</div><div class="kpi-val blue">${paid.toFixed(3)} KD</div></div>
-    <div class="kpi"><div class="kpi-label">${t('pets')}</div><div class="kpi-val">${pets}</div></div>
-    <div class="kpi"><div class="kpi-label">${t('commission')}</div><div class="kpi-val red">${(rev*COMM).toFixed(3)} KD</div></div>
-    <div class="kpi"><div class="kpi-label">${t('freeFS')} / ${t('freeBS')}</div><div class="kpi-val amber">${ffs} / ${fbs}</div></div>
-    <div class="kpi"><div class="kpi-label">${t('freeValue')}</div><div class="kpi-val">${fval.toFixed(3)} KD</div></div>`;
-
-  document.getElementById('dash-branches').innerHTML=`
-    <div class="grm-row"><span>AlRai</span><span style="font-weight:800;color:var(--teal-dark)">${alrai.toFixed(3)} KD</span></div>
-    <div class="grm-row"><span>Aswaq AlQurain</span><span style="font-weight:800;color:var(--blue)">${alq.toFixed(3)} KD</span></div>`;
-
-  const grmData=GROOMERS.map(g=>{
-    const gr=recs.filter(r=>getGroomers(r).includes(g));
-    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,getGroomers(r).length),0);
-    const gPets=gr.reduce((s,r)=>{
-      if(r.services&&r.services.length)return s+r.services.reduce((a,sv)=>a+(sv.qty||0),0);
-      return s+(r.qty||0);
-    },0);
-    return{g,gRev,gPets};
-  }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
-
-  const grEl=document.getElementById('dash-groomers');
-  grEl.innerHTML=grmData.length?grmData.map((x,i)=>`
-    <div class="grm-row">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="rank-circle">${i+1}</div>
-        <div>
-          <div style="font-size:13px;font-weight:700">${x.g}</div>
-          <div style="font-size:11px;color:var(--muted)">${x.gPets} pets · comm: ${(x.gRev*COMM).toFixed(3)} KD</div>
-        </div>
-      </div>
-      <div style="font-weight:800;color:var(--teal-dark)">${x.gRev.toFixed(3)} KD</div>
-    </div>`).join(''):`<div class="empty">${t('noData')}</div>`;
-
-  document.getElementById('dash-monthly').innerHTML=`<table>
-    <thead><tr><th>Month</th><th>${t('revenue')}</th><th>${t('paid')}</th><th>${t('pets')}</th><th>${t('commission')}</th></tr></thead>
-    <tbody>${MONTHS.map(m=>{
-      const mr=recs.filter(r=>r.month===m);
-      const mRev=mr.reduce((s,r)=>s+r.total,0);
-      const mPaid=mr.reduce((s,r)=>s+r.charged,0);
-      const mPets=mr.reduce((s,r)=>{if(r.services&&r.services.length)return s+r.services.reduce((a,sv)=>a+(sv.qty||0),0);return s+(r.qty||0);},0);
-      return`<tr><td><b>${m}</b></td><td style="color:var(--teal-dark);font-weight:700">${mRev.toFixed(3)} KD</td><td style="color:var(--blue);font-weight:700">${mPaid.toFixed(3)} KD</td><td>${mPets}</td><td style="color:var(--red-dark);font-weight:700">${(mRev*COMM).toFixed(3)} KD</td></tr>`;
-    }).join('')}</tbody></table>`;
+function getPets(r){
+  if(r.services&&r.services.length)return r.services.reduce((s,sv)=>s+(sv.qty||0),0);
+  return r.qty||0;
 }
 
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const month=document.getElementById('dash-month').value;
+  const year=document.getElementById('dash-year')?document.getElementById('dash-year').value:'all';
+  const recs=filterRecs(month,'all',year);
+  const rev=recs.reduce((s,r)=>s+(r.total||0),0);
+  const paid=recs.reduce((s,r)=>s+(r.charged||0),0);
+  const pets=recs.reduce((s,r)=>s+getPets(r),0);
+  const ffs=recs.reduce((s,r)=>{if(r.services&&r.services.length)return s+r.services.filter(sv=>sv.service==='Full Service').reduce((a,sv)=>a+(sv.free_units||0),0);return s+(r.service==='Full Service'?r.free_units||0:0);},0);
+  const fbs=recs.reduce((s,r)=>{if(r.services&&r.services.length)return s+r.services.filter(sv=>sv.service==='Basic Shower').reduce((a,sv)=>a+(sv.free_units||0),0);return s+(r.service==='Basic Shower'?r.free_units||0:0);},0);
+  document.getElementById('dash-kpis').innerHTML=
+    kpi('Revenue',rev.toFixed(3)+' KD','green')+kpi('Charged (after free)',paid.toFixed(3)+' KD','blue')+
+    kpi('Pets',pets,'')+kpi('Commission',(rev*COMM).toFixed(3)+' KD','red')+
+    kpi('Free FS / BS',ffs+' / '+fbs,'amber')+kpi('Free Value',((ffs*12.5)+(fbs*8.5)).toFixed(3)+' KD','');
+  const alrai=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+(r.total||0),0);
+  const alq=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+(r.total||0),0);
+  document.getElementById('dash-branches').innerHTML=
+    row('AlRai','<span style="font-weight:800;color:var(--teal-dark)">'+alrai.toFixed(3)+' KD</span>')+
+    row('Aswaq AlQurain','<span style="font-weight:800;color:var(--blue)">'+alq.toFixed(3)+' KD</span>');
+  const grmData=GROOMERS.map(g=>{
+    const gr=recs.filter(r=>grmArr(r).includes(g));
+    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
+    const gPets=gr.reduce((s,r)=>s+getPets(r),0);
+    return{g,gRev,gPets};
+  }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
+  const grEl=document.getElementById('dash-groomers');
+  grEl.innerHTML=grmData.length?grmData.map((x,i)=>'<div class="grm-row"><div style="display:flex;align-items:center;gap:8px"><div class="rank-circle">'+(i+1)+'</div><div><div style="font-size:13px;font-weight:700">'+x.g+'</div><div style="font-size:11px;color:var(--muted)">'+x.gPets+' pets · comm: '+(x.gRev*COMM).toFixed(3)+' KD</div></div></div><div style="font-weight:800;color:var(--teal-dark)">'+x.gRev.toFixed(3)+' KD</div></div>').join(''):'<div class="empty">'+t('noData')+'</div>';
+  document.getElementById('dash-monthly').innerHTML='<table><thead><tr><th>Month</th><th>Revenue</th><th>Charged</th><th>Pets</th><th>Commission</th></tr></thead><tbody>'+MONTHS.map(m=>{
+    const mr=recs.filter(r=>r.month&&r.month.toLowerCase()===m.toLowerCase());
+    const mRev=mr.reduce((s,r)=>s+(r.total||0),0);
+    const mPaid=mr.reduce((s,r)=>s+(r.charged||0),0);
+    const mPets=mr.reduce((s,r)=>s+getPets(r),0);
+    return'<tr><td><b>'+m+'</b></td><td style="color:var(--teal-dark);font-weight:700">'+mRev.toFixed(3)+' KD</td><td style="color:var(--blue);font-weight:700">'+mPaid.toFixed(3)+' KD</td><td>'+mPets+'</td><td style="color:var(--red-dark);font-weight:700">'+(mRev*COMM).toFixed(3)+' KD</td></tr>';
+  }).join('')+'</tbody></table>';
+}
+
+function kpi(label,val,cls){return'<div class="kpi"><div class="kpi-label">'+label+'</div><div class="kpi-val '+cls+'">'+val+'</div></div>';}
+function row(a,b){return'<div class="grm-row"><span>'+a+'</span>'+b+'</div>';}
+
+// ── RECORDS ───────────────────────────────────────────────────────────────────
 function renderRecords(){
   const month=document.getElementById('rec-month').value;
   const branch=document.getElementById('rec-branch').value;
-  const recs=filterRecords(month,branch);
+  const recs=filterRecs(month,branch);
   const el=document.getElementById('records-table');
-  if(!recs.length){el.innerHTML=`<div class="empty"><div class="icon">📋</div>${t('noData')}</div>`;return;}
-  window._recs = recs;
-  el.innerHTML=`<table>
-    <thead><tr><th>Date</th><th>Branch</th><th>Client</th><th>Groomer(s)</th><th>Services</th><th>Total</th><th>Free</th><th>Charged</th><th></th></tr></thead>
-    <tbody>${recs.map((r,i)=>{
-      const svcs=r.services&&r.services.length?r.services.map(s=>`${s.service} x${s.qty}`).join(', '):(r.service||'');
-      const clientName=r.client_name?`<div style="font-weight:600">${r.client_name}</div>`:'';
-      return`<tr>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer">${r.date}</td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer"><span class="badge ${r.branch==='AlRai'?'badge-blue':'badge-green'}">${r.branch}</span></td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer">${clientName}<span style="font-size:11px;color:var(--muted)">${r.phone}</span></td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer;font-size:11px">${(r.groomers||[]).join(', ')}</td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer;font-size:11px">${svcs}</td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer">${r.total.toFixed(3)}</td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer;text-align:center">${r.free_units>0?`<span class="badge badge-amber">🎁 ${r.free_units}</span>`:'-'}</td>
-        <td onclick="openRecordModal(window._recs[${i}])" style="cursor:pointer;font-weight:800;color:var(--teal-dark)">${r.charged.toFixed(3)} KD</td>
-        <td><button onclick="deleteRecord('${r.id}',event)" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🗑</button></td>
-      </tr>`;
-    }).join('')}</tbody></table>`;
+  if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">📋</div>'+t('noData')+'</div>';return;}
+  window._recs=recs;
+  el.innerHTML='<table><thead><tr><th>Date</th><th>Branch</th><th>Client</th><th>Groomer(s)</th><th>Services</th><th>Total</th><th>Free</th><th>Charged</th><th></th></tr></thead><tbody>'+
+    recs.map((r,i)=>{
+      const svcs=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty).join(', '):(r.service||'');
+      const cl=r.client_name?'<div style="font-weight:600">'+r.client_name+'</div>':'';
+      return'<tr onclick="openRecModal('+i+')" style="cursor:pointer;transition:background 0.1s">'
+        +'<td>'+r.date+'</td>'
+        +'<td><span class="badge '+(r.branch==='AlRai'?'badge-blue':'badge-green')+'">'+r.branch+'</span></td>'
+        +'<td>'+cl+'<span style="font-size:11px;color:var(--muted)">'+r.phone+'</span></td>'
+        +'<td style="font-size:11px">'+grmArr(r).join(', ')+'</td>'
+        +'<td style="font-size:11px">'+svcs+'</td>'
+        +'<td>'+(r.total||0).toFixed(3)+'</td>'
+        +'<td style="text-align:center">'+(r.free_units>0?'<span class="badge badge-amber">🎁 '+r.free_units+'</span>':'-')+'</td>'
+        +'<td style="font-weight:800;color:var(--teal-dark)">'+(r.charged||0).toFixed(3)+' KD</td>'
+        +'<td><button onclick="delRec(this.dataset.id,event)" data-id="'+r.id+'" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;font-family:inherit">🗑</button></td>'
+        +'</tr>';
+    }).join('')+'</tbody></table>';
 }
 
-function getGroomers(r){
-  // Handle groomers as array or string
-  if(!r.groomers) return [];
-  if(Array.isArray(r.groomers)) return r.groomers;
-  if(typeof r.groomers==='string'){
-    try{return JSON.parse(r.groomers);}catch(e){return [r.groomers];}
-  }
-  return [];
+async function delRec(id,e){ if(typeof id==='object')id=id; // handle both
+  e.stopPropagation();
+  if(!confirm('Delete this record? Cannot be undone.'))return;
+  const {error}=await sb.from('records').delete().eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  await loadRecs();renderRecords();renderDashboard();
 }
 
+function openRecModal(i){
+  const r=window._recs[i];if(!r)return;
+  const svcs=r.services&&r.services.length?r.services.map(s=>'<tr><td style="padding:7px 10px">'+s.service+'</td><td style="padding:7px 10px;text-align:center">'+s.qty+'</td><td style="padding:7px 10px;text-align:center">'+(s.price?(s.price).toFixed(3)+' KD':'-')+'</td><td style="padding:7px 10px;text-align:center">'+(s.free_units>0?'🎁 '+s.free_units:'-')+'</td><td style="padding:7px 10px;font-weight:700;color:var(--teal-dark)">'+(s.charged?(s.charged).toFixed(3)+' KD':'-')+'</td></tr>').join(''):'<tr><td colspan="5" style="padding:8px">'+( r.service||'-')+' × '+(r.qty||1)+'</td></tr>';
+  document.getElementById('rec-modal-title').textContent='📋 Session — '+r.date;
+  document.getElementById('rec-modal-body').innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'
+    +'<div style="background:var(--teal-light);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px">Client</div><div style="font-weight:800;font-size:15px">'+(r.client_name||'—')+'</div><div style="font-size:13px;color:var(--muted)">'+r.phone+'</div></div>'
+    +'<div style="background:var(--teal-light);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px">Branch & Visit</div><div style="font-weight:700">'+r.branch+'</div><div style="font-size:13px;color:var(--muted)">'+(r.visit_type||'Visit')+' — '+(r.week||'')+'</div></div>'
+    +'</div>'
+    +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px">Groomers</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+grmArr(r).map(g=>'<span style="background:var(--navy);color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">'+g+'</span>').join('')+'</div></div>'
+    +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:8px">Services</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--teal-light)"><th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--muted)">Service</th><th style="padding:7px 10px;text-align:center;font-size:11px;color:var(--muted)">Qty</th><th style="padding:7px 10px;text-align:center;font-size:11px;color:var(--muted)">Price</th><th style="padding:7px 10px;text-align:center;font-size:11px;color:var(--muted)">Free</th><th style="padding:7px 10px;text-align:center;font-size:11px;color:var(--muted)">Charged</th></tr></thead><tbody>'+svcs+'</tbody></table></div>'
+    +'<div style="background:var(--navy);color:#fff;border-radius:10px;padding:14px">'
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Total Revenue</span><span>'+(r.total||0).toFixed(3)+' KD</span></div>'
+    +(r.free_units>0?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Free Units</span><span style="color:#F39C12">🎁 '+r.free_units+'</span></div>':'')
+    +(r.discount_amt>0?'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>Discount ('+(r.discount_pct||0)+'%)</span><span style="color:#F39C12">-'+(r.discount_amt).toFixed(3)+' KD</span></div>':'')
+    +'<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px;margin-top:4px"><span>Total Charged</span><span style="color:#A9DFBF">'+(r.charged||0).toFixed(3)+' KD</span></div>'
+    +'</div>'
+    +(r.notes?'<div style="margin-top:12px;padding:10px;background:#FFF9C4;border-radius:8px;font-size:13px"><b>Notes:</b> '+r.notes+'</div>':'')
+    +'<div style="margin-top:10px;font-size:11px;color:var(--muted);text-align:center">Recorded by: '+(r.recorded_by||'-')+'</div>';
+  document.getElementById('rec-modal').style.display='block';
+}
+
+// ── COMMISSIONS ───────────────────────────────────────────────────────────────
 function renderCommissions(){
   const month=document.getElementById('comm-month').value;
-  const recs=allRecords.filter(r=>{
-    if(!r.month) return false;
-    return r.month.toLowerCase()===month.toLowerCase();
-  });
+  const recs=allRecs.filter(r=>r.month&&r.month.toLowerCase()===month.toLowerCase());
   const el=document.getElementById('comm-content');
-  if(!recs.length){el.innerHTML=`<div class="empty"><div class="icon">💸</div>${t('noData')}</div>`;return;}
+  if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">💸</div>'+t('noData')+'</div>';return;}
   const WEEKS=['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'];
-  const grmTotals=GROOMERS.map(g=>{
-    const gr=recs.filter(r=>getGroomers(r).includes(g));
-    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,getGroomers(r).length),0);
-    const gPets=gr.reduce((s,r)=>{if(r.services&&r.services.length)return s+r.services.reduce((a,sv)=>a+(sv.qty||0),0);return s+(r.qty||0);},0);
+  const grmData=GROOMERS.map(g=>{
+    const gr=recs.filter(r=>grmArr(r).includes(g));
+    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
+    const gPets=gr.reduce((s,r)=>s+getPets(r),0);
     return{g,gRev,gPets,gComm:gRev*COMM};
   }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
-  el.innerHTML=grmTotals.map((x,rank)=>{
-    const wkHtml=WEEKS.map((wk,wi)=>{
-      const wr=recs.filter(r=>r.week===wk&&getGroomers(r).includes(x.g));
+  el.innerHTML=grmData.map((x,rank)=>{
+    const wks=WEEKS.map((wk,wi)=>{
+      const wr=recs.filter(r=>r.week===wk&&grmArr(r).includes(x.g));
       if(!wr.length)return'';
-      const wRev=wr.reduce((s,r)=>s+(r.total||0)/Math.max(1,getGroomers(r).length),0);
-      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
-        <span class="week-tag">${t('weekLabel')[wi]||wk}</span>
-        <span style="font-size:12px">${wRev.toFixed(3)} KD — <b style="color:var(--teal-dark)">comm: ${(wRev*COMM).toFixed(3)} KD</b></span>
-      </div>`;
+      const wRev=wr.reduce((s,r)=>s+(r.total||0)/Math.max(1,grmArr(r).length),0);
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
+        +'<span class="week-tag">'+(t('weekLabel')[wi]||wk)+'</span>'
+        +'<span style="font-size:12px">'+wRev.toFixed(3)+' KD — <b style="color:var(--teal-dark)">Comm: '+(wRev*COMM).toFixed(3)+' KD</b></span>'
+        +'</div>';
     }).join('');
-    return`<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="rank-circle">${rank+1}</div>
-          <div><div style="font-weight:800">${x.g}</div><div style="font-size:12px;color:var(--muted)">${x.gPets} pets</div></div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;color:var(--muted)">${x.gRev.toFixed(3)} KD</div>
-          <div style="font-size:16px;font-weight:800;color:var(--red-dark)">Comm: ${x.gComm.toFixed(3)} KD</div>
-        </div>
-      </div>${wkHtml}</div>`;
+    return'<div class="card">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px"><div class="rank-circle">'+(rank+1)+'</div>'
+      +'<div><div style="font-weight:800">'+x.g+'</div><div style="font-size:12px;color:var(--muted)">'+x.gPets+' pets</div></div></div>'
+      +'<div style="text-align:right"><div style="font-size:13px;color:var(--muted)">'+x.gRev.toFixed(3)+' KD</div>'
+      +'<div style="font-size:16px;font-weight:800;color:var(--red-dark)">Comm: '+x.gComm.toFixed(3)+' KD</div></div>'
+      +'</div>'+wks+'</div>';
   }).join('');
 }
 
+// ── CLIENTS ───────────────────────────────────────────────────────────────────
 function renderClients(){
   const q=document.getElementById('client-search').value.trim().toLowerCase();
   const el=document.getElementById('clients-content');
-  if(!q){el.innerHTML=`<div class="empty"><div class="icon">👥</div>${t('searchPhone')}</div>`;return;}
-  const matching=allRecords.filter(r=>(r.phone&&r.phone.includes(q))||(r.client_name&&r.client_name.toLowerCase().includes(q)));
-  if(!matching.length){el.innerHTML=`<div class="empty"><div class="icon">🔍</div>${t('noData')}</div>`;return;}
-  const phones=[...new Set(matching.map(r=>r.phone))];
+  if(!q){el.innerHTML='<div class="empty"><div class="icon">👥</div>Search by phone or name</div>';return;}
+  const match=allRecs.filter(r=>(r.phone&&r.phone.includes(q))||(r.client_name&&r.client_name.toLowerCase().includes(q)));
+  if(!match.length){el.innerHTML='<div class="empty"><div class="icon">🔍</div>'+t('noData')+'</div>';return;}
+  const phones=[...new Set(match.map(r=>r.phone))];
   el.innerHTML=phones.map(ph=>{
-    const pr=allRecords.filter(r=>r.phone===ph);
-    const totalPaid=pr.reduce((s,r)=>s+r.charged,0);
-    const totalRev=pr.reduce((s,r)=>s+r.total,0);
+    const pr=allRecs.filter(r=>r.phone===ph);
+    const totalPaid=pr.reduce((s,r)=>s+(r.charged||0),0);
+    const totalRev=pr.reduce((s,r)=>s+(r.total||0),0);
     const totalFree=pr.reduce((s,r)=>s+(r.free_units||0),0);
     const lastDate=pr.map(r=>r.date).sort().reverse()[0];
-    const clientName=pr.find(r=>r.client_name)?.client_name||'';
+    const cname=pr.find(r=>r.client_name)?.client_name||'';
     const svcs=[...new Set(pr.flatMap(r=>r.services?r.services.map(s=>s.service):[r.service]).filter(Boolean))];
-    return`<div class="card" onclick="openClientModal('${ph}')" style="cursor:pointer;transition:all 0.15s" onmouseover="this.style.background='#E8F5EE'" onmouseout="this.style.background='#fff'">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div>
-          ${clientName?`<div style="font-size:16px;font-weight:800">${clientName}</div>`:''}
-          <div style="font-size:${clientName?13:16}px;font-weight:${clientName?500:800};color:var(--muted)">${ph}</div>
-        </div>
-        <span class="badge badge-blue">${pr.length} ${t('visits')}</span>
-      </div>
-      <div class="grm-row"><span>${t('totalPaidLbl')}</span><span style="font-weight:800;color:var(--teal-dark)">${totalPaid.toFixed(3)} KD</span></div>
-      <div class="grm-row"><span>${t('revenue')}</span><span>${totalRev.toFixed(3)} KD</span></div>
-      <div class="grm-row"><span>${t('freeGiven')}</span><span>${totalFree||'-'}</span></div>
-      <div class="grm-row"><span>${t('lastVisit')}</span><span>${lastDate||'-'}</span></div>
-      <div class="grm-row"><span>Services</span><span style="font-size:11px;text-align:right;max-width:55%">${svcs.join(', ')}</span></div>
-    </div>`;
+    return'<div class="card" style="cursor:pointer" onclick="openClientModal(this.dataset.ph)" data-ph="'+ph+'">'+
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<div>'+(cname?'<div style="font-size:16px;font-weight:800">'+cname+'</div>':'')
+      +'<div style="font-size:'+(cname?13:16)+'px;font-weight:'+(cname?500:800)+';color:var(--muted)">'+ph+'</div></div>'
+      +'<span class="badge badge-blue">'+pr.length+' visits</span></div>'
+      +'<div class="grm-row"><span>Total Paid</span><span style="font-weight:800;color:var(--teal-dark)">'+totalPaid.toFixed(3)+' KD</span></div>'
+      +'<div class="grm-row"><span>Revenue</span><span>'+totalRev.toFixed(3)+' KD</span></div>'
+      +'<div class="grm-row"><span>Free Given</span><span>'+(totalFree||'-')+'</span></div>'
+      +'<div class="grm-row"><span>Last Visit</span><span>'+(lastDate||'-')+'</span></div>'
+      +'<div class="grm-row"><span>Services</span><span style="font-size:11px;text-align:right;max-width:55%">'+svcs.join(', ')+'</span></div>'
+      +'</div>';
   }).join('');
 }
 
-let _allUsers = [];
+function openClientModal(ph){
+  const pr=allRecs.filter(r=>r.phone===ph);
+  if(!pr.length)return;
+  const cname=pr.find(r=>r.client_name)?.client_name||'';
+  const totalPaid=pr.reduce((s,r)=>s+(r.charged||0),0);
+  const totalFree=pr.reduce((s,r)=>s+(r.free_units||0),0);
+  const totalDisc=pr.reduce((s,r)=>s+(r.discount_amt||0),0);
+  window._recs=allRecs;
+  document.getElementById('rec-modal-title').textContent='👥 '+(cname||ph);
+  document.getElementById('rec-modal-body').innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">'
+    +'<div style="background:var(--teal-light);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Visits</div><div style="font-size:22px;font-weight:800;color:var(--navy)">'+pr.length+'</div></div>'
+    +'<div style="background:var(--teal-light);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Total Paid</div><div style="font-size:14px;font-weight:800;color:var(--teal-dark)">'+totalPaid.toFixed(3)+' KD</div></div>'
+    +'<div style="background:var(--teal-light);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Free Given</div><div style="font-size:18px;font-weight:800;color:#8B6914">'+(totalFree||0)+'</div></div>'
+    +'</div>'
+    +(totalDisc>0?'<div style="background:#FFF9C4;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px">Total Discounts: <b>'+totalDisc.toFixed(3)+' KD</b></div>':'')
+    +'<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:8px">Visit History</div>'
+    +pr.map((r,i)=>{
+      const idx=allRecs.findIndex(x=>x.id===r.id);
+      const svcsText=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty).join(', '):(r.service||'');
+      return'<div onclick="openRecModal('+idx+')" style="background:var(--teal-light);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;border:1px solid var(--border)>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<div><div style="font-weight:700;font-size:13px">'+r.date+' — '+r.branch+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+svcsText+'</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+grmArr(r).join(', ')+'</div></div>'
+        +'<div style="text-align:right"><div style="font-weight:800;color:var(--teal-dark)">'+(r.charged||0).toFixed(3)+' KD</div>'
+        +(r.free_units>0?'<div style="font-size:11px;color:#8B6914">🎁 '+r.free_units+' free</div>':'')
+        +(r.discount_amt>0?'<div style="font-size:11px;color:#8B6914">-'+r.discount_amt.toFixed(3)+' disc</div>':'')
+        +'</div></div></div>';
+    }).join('');
+  document.getElementById('rec-modal').style.display='block';
+}
 
+// ── USERS ─────────────────────────────────────────────────────────────────────
 async function renderUsers(){
   const {data}=await sb.from('users').select('*').order('created_at');
-  _allUsers=data||[];
+  allUsers=data||[];
   const el=document.getElementById('users-list');
-  if(!data||!data.length){el.innerHTML=`<div class="empty">${t('noData')}</div>`;return;}
-  el.innerHTML=data.map((u,idx)=>`
-    <div class="user-item">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="user-avatar">${(u.name||u.username).substring(0,2).toUpperCase()}</div>
-        <div>
-          <div style="font-weight:700;font-size:14px">${u.name||u.username}</div>
-          <div style="font-size:11px;color:var(--muted)">@${u.username} &nbsp;<span class="badge ${u.role==='admin'?'badge-red':'badge-blue'}">${u.role}</span> &nbsp;${u.branch||''}</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button onclick="editUserById(${idx})" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✏️ Edit</button>
-        ${u.username!=='admin'?`<button onclick="deleteUser('${u.id}','${u.username}')" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Delete</button>`:`<span style="font-size:11px;color:var(--muted)">Protected</span>`}
-      </div>
-    </div>`).join('');
+  if(!allUsers.length){el.innerHTML='<div class="empty">'+t('noData')+'</div>';return;}
+  el.innerHTML=allUsers.map((u,idx)=>
+    '<div class="user-item">'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<div class="user-avatar">'+(u.name||u.username).substring(0,2).toUpperCase()+'</div>'
+    +'<div><div style="font-weight:700;font-size:14px">'+(u.name||u.username)+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">@'+u.username+' &nbsp;<span class="badge '+(u.role==='admin'?'badge-red':'badge-blue')+'">'+u.role+'</span> &nbsp;'+(u.branch||'')+'</div></div></div>'
+    +'<div style="display:flex;gap:6px">'
+    +'<button onclick="openEditUser('+idx+')" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✏️ Edit</button>'
+    +(u.username!=='admin'?'<button onclick="deleteUser(this.dataset.uid,this.dataset.uname)" data-uid="'+u.id+'" data-uname="'+u.username+'" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Delete</button>':'<span style="font-size:11px;color:var(--muted)">Protected</span>')
+    +'</div></div>'
+  ).join('');
+}
+
+function openEditUser(idx){
+  const u=allUsers[idx];if(!u)return;
+  document.getElementById('edit-uid').value=u.id;
+  document.getElementById('edit-modal-uname').textContent='@'+u.username;
+  document.getElementById('edit-name').value=u.name||'';
+  document.getElementById('edit-pass').value='';
+  document.getElementById('edit-role').value=u.role||'cashier';
+  document.getElementById('edit-branch').value=u.branch||'all';
+  document.getElementById('edit-msg').style.display='none';
+  document.getElementById('edit-modal').style.display='flex';
+}
+
+async function saveEditUser(){
+  const id=document.getElementById('edit-uid').value;
+  const name=document.getElementById('edit-name').value.trim();
+  const pass=document.getElementById('edit-pass').value;
+  const role=document.getElementById('edit-role').value;
+  const branch=document.getElementById('edit-branch').value;
+  const msg=document.getElementById('edit-msg');
+  const updates={name,role,branch};
+  if(pass)updates.password=pass;
+  const {error}=await sb.from('users').update(updates).eq('id',id);
+  if(error){msg.textContent='Error: '+error.message;msg.style.display='block';msg.style.background='#FADBD8';msg.style.color='#922B21';return;}
+  msg.textContent='✅ Saved!';msg.style.display='block';msg.style.background='#D5F0E0';msg.style.color='#1B5C38';
+  setTimeout(()=>{document.getElementById('edit-modal').style.display='none';renderUsers();},800);
 }
 
 async function addUser(){
@@ -1265,11 +945,37 @@ async function addUser(){
 }
 
 async function deleteUser(id,username){
-  if(!confirm(`Delete "${username}"?`))return;
+  if(!confirm('Delete user "'+username+'"? Cannot be undone.'))return;
   await sb.from('users').delete().eq('id',id);
   renderUsers();
 }
 
+// ── EXPORT CSV ────────────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!allRecs.length){alert('No data to export!');return;}
+  const month=document.getElementById('dash-month').value;
+  const year=document.getElementById('dash-year')?document.getElementById('dash-year').value:'all';
+  const recs=filterRecs(month,'all',year);
+  const hdrs=['Date','Month','Week','Branch','Client','Phone','Groomers','Services','Pets','Revenue(KD)','Free','Charged(KD)','Discount%','Discount(KD)','Visit','Notes','By'];
+  const rows=recs.map(r=>{
+    const gr=grmArr(r).join('|');
+    const sv=r.services&&r.services.length?r.services.map(s=>s.service+'x'+s.qty).join('|'):(r.service||'');
+    const pts=getPets(r);
+    return[r.date||'',r.month||'',r.week||'',r.branch||'',r.client_name||'',r.phone||'',gr,sv,pts,
+      (r.total||0).toFixed(3),(r.free_units||0),(r.charged||0).toFixed(3),
+      (r.discount_pct||0),(r.discount_amt||0).toFixed(3),r.visit_type||'',r.notes||'',r.recorded_by||''];
+  });
+  const q='"',nl=String.fromCharCode(13,10);
+  const csv=[hdrs,...rows].map(function(row){return row.map(function(v){return q+String(v).replace(/"/g,q+q)+q;}).join(',');}).join(nl);
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='PetPoint_'+month+'_'+new Date().toISOString().split('T')[0]+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
@@ -1284,231 +990,6 @@ function switchTab(tab){
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-
-function closeModal(e){
-  if(e.target===document.getElementById('modal-overlay'))
-    document.getElementById('modal-overlay').style.display='none';
-}
-
-function openRecordModal(rec){
-  const svcs=rec.services&&rec.services.length
-    ?rec.services.map(s=>`
-      <tr>
-        <td style="padding:8px 10px">${s.service}</td>
-        <td style="padding:8px 10px;text-align:center">${s.qty}</td>
-        <td style="padding:8px 10px;text-align:center">${s.price?s.price.toFixed(3)+' KD':'-'}</td>
-        <td style="padding:8px 10px;text-align:center">${s.free_units>0?'🎁 '+s.free_units:'-'}</td>
-        <td style="padding:8px 10px;font-weight:700;color:#1B5C38">${s.charged?s.charged.toFixed(3)+' KD':'-'}</td>
-      </tr>`).join('')
-    :`<tr><td colspan="5" style="padding:8px 10px">${rec.service||'-'} × ${rec.qty||1}</td></tr>`;
-
-  document.getElementById('modal-title').textContent = `📋 Session — ${rec.date}`;
-  document.getElementById('modal-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <div style="background:#F0F7F2;border-radius:10px;padding:12px">
-        <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:4px">Client</div>
-        <div style="font-weight:800;font-size:15px">${rec.client_name||'-'}</div>
-        <div style="font-size:13px;color:#5D7A69">${rec.phone}</div>
-      </div>
-      <div style="background:#F0F7F2;border-radius:10px;padding:12px">
-        <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:4px">Branch & Visit</div>
-        <div style="font-weight:700">${rec.branch}</div>
-        <div style="font-size:13px;color:#5D7A69">${rec.visit_type||'Visit'} — ${rec.week||''}</div>
-      </div>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:8px">Groomers</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${(rec.groomers||[]).map(g=>`<span style="background:#1B3A2D;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600">${g}</span>`).join('')}
-      </div>
-    </div>
-
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:8px">Services</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead>
-          <tr style="background:#F0F7F2">
-            <th style="padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#5D7A69">Service</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Qty</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Price</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Free</th>
-            <th style="padding:8px 10px;text-align:center;font-size:11px;text-transform:uppercase;color:#5D7A69">Charged</th>
-          </tr>
-        </thead>
-        <tbody style="border:1px solid #C8E6D0">${svcs}</tbody>
-      </table>
-    </div>
-
-    <div style="background:#1B3A2D;color:#fff;border-radius:10px;padding:14px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
-        <span>Total Revenue</span><span>${rec.total?rec.total.toFixed(3)+' KD':'0.000 KD'}</span>
-      </div>
-      ${rec.free_units>0?`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Free Units</span><span style="color:#F39C12">🎁 ${rec.free_units}</span></div>`:''}
-      ${rec.discount_amt>0?`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span>Discount (${rec.discount_pct||0}%)</span><span style="color:#F39C12">-${rec.discount_amt.toFixed(3)} KD</span></div>`:''}
-      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px;margin-top:4px">
-        <span>Total Charged</span><span style="color:#A9DFBF">${rec.charged?rec.charged.toFixed(3)+' KD':'0.000 KD'}</span>
-      </div>
-    </div>
-    ${rec.notes?`<div style="margin-top:12px;padding:10px 14px;background:#FFF9C4;border-radius:8px;font-size:13px"><b>Notes:</b> ${rec.notes}</div>`:''}
-    <div style="margin-top:10px;font-size:11px;color:#5D7A69;text-align:center">Recorded by: ${rec.recorded_by||'-'} — ${rec.created_at?new Date(rec.created_at).toLocaleString():''}</div>
-  `;
-  document.getElementById('modal-overlay').style.display='block';
-}
-
-function openClientModal(phone){
-  const pr=allRecords.filter(r=>r.phone===phone);
-  if(!pr.length)return;
-  const clientName=pr.find(r=>r.client_name)?.client_name||'';
-  const totalPaid=pr.reduce((s,r)=>s+r.charged,0);
-  const totalRev=pr.reduce((s,r)=>s+r.total,0);
-  const totalFree=pr.reduce((s,r)=>s+(r.free_units||0),0);
-  const totalDisc=pr.reduce((s,r)=>s+(r.discount_amt||0),0);
-  const lastDate=pr.map(r=>r.date).sort().reverse()[0];
-
-  document.getElementById('modal-title').textContent = `👥 ${clientName||phone}`;
-  document.getElementById('modal-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-      <div style="background:#F0F7F2;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#5D7A69;font-weight:700;text-transform:uppercase">Visits</div>
-        <div style="font-size:22px;font-weight:800;color:#1B3A2D">${pr.length}</div>
-      </div>
-      <div style="background:#F0F7F2;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#5D7A69;font-weight:700;text-transform:uppercase">Total Paid</div>
-        <div style="font-size:16px;font-weight:800;color:#1B5C38">${totalPaid.toFixed(3)} KD</div>
-      </div>
-      <div style="background:#F0F7F2;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:10px;color:#5D7A69;font-weight:700;text-transform:uppercase">Last Visit</div>
-        <div style="font-size:13px;font-weight:700;color:#1B3A2D">${lastDate||'-'}</div>
-      </div>
-    </div>
-    ${totalDisc>0?`<div style="background:#FFF9C4;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px">Total Discounts Given: <b>${totalDisc.toFixed(3)} KD</b></div>`:''}
-    <div style="font-size:11px;color:#5D7A69;font-weight:700;text-transform:uppercase;margin-bottom:8px">Visit History</div>
-    ${pr.map(r=>{
-      const svcsText=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty).join(', '):(r.service||'');
-      return`<div onclick="openRecordModal(allRecords.find(x=>x.id==='${r.id}'))" style="background:#F0F7F2;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;border:1px solid #C8E6D0;transition:all 0.15s" onmouseover="this.style.background='#E8F5EE'" onmouseout="this.style.background='#F0F7F2'">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-weight:700;font-size:13px">${r.date} — ${r.branch}</div>
-            <div style="font-size:11px;color:#5D7A69;margin-top:2px">${svcsText}</div>
-            <div style="font-size:11px;color:#5D7A69">${(r.groomers||[]).join(', ')}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:800;color:#1B5C38">${r.charged.toFixed(3)} KD</div>
-            ${r.free_units>0?`<div style="font-size:11px;color:#8B6914">🎁 ${r.free_units} free</div>`:''}
-            ${r.discount_amt>0?`<div style="font-size:11px;color:#8B6914">-${r.discount_amt.toFixed(3)} disc</div>`:''}
-          </div>
-        </div>
-      </div>`;
-    }).join('')}
-  `;
-  document.getElementById('modal-overlay').style.display='block';
-}
-
-
-// ── EXPORT CSV ────────────────────────────────────────────────────────────────
-
-// ── DELETE RECORD ─────────────────────────────────────────────────────────────
-async function deleteRecord(id, event){
-  event.stopPropagation();
-  if(!confirm('Delete this record? This cannot be undone.')) return;
-  const {error}=await sb.from('records').delete().eq('id',id);
-  if(error){alert('Error deleting: '+error.message);return;}
-  await loadAllRecords();
-  renderRecords();
-  renderDashboard();
-}
-
-// ── EDIT USER ─────────────────────────────────────────────────────────────────
-function editUserById(idx){
-  const u=_allUsers[idx];
-  if(!u)return;
-  document.getElementById('edit-uid').value=u.id;
-  document.getElementById('edit-uname-display').textContent='@'+u.username;
-  document.getElementById('edit-name').value=u.name||'';
-  document.getElementById('edit-pass').value='';
-  document.getElementById('edit-role').value=u.role||'cashier';
-  document.getElementById('edit-branch').value=u.branch||'all';
-  document.getElementById('edit-user-msg').style.display='none';
-  document.getElementById('edit-user-modal').style.display='flex';
-}
-
-function editUserModal(id,username,name,role,branch){
-  document.getElementById('edit-uid').value=id;
-  document.getElementById('edit-name').value=name;
-  document.getElementById('edit-pass').value='';
-  document.getElementById('edit-role').value=role;
-  document.getElementById('edit-branch').value=branch||'all';
-  document.getElementById('edit-user-msg').style.display='none';
-  document.getElementById('edit-user-modal').style.display='flex';
-}
-
-async function saveEditUser(){
-  const id=document.getElementById('edit-uid').value;
-  const name=document.getElementById('edit-name').value.trim();
-  const pass=document.getElementById('edit-pass').value;
-  const role=document.getElementById('edit-role').value;
-  const branch=document.getElementById('edit-branch').value;
-  const msg=document.getElementById('edit-user-msg');
-  
-  const updates={name,role,branch};
-  if(pass) updates.password=pass;
-  
-  const {error}=await sb.from('users').update(updates).eq('id',id);
-  if(error){
-    msg.textContent='Error: '+error.message;
-    msg.style.display='block';msg.style.color='#922B21';
-    return;
-  }
-  msg.textContent='Saved!';msg.style.display='block';msg.style.color='#1B5C38';
-  setTimeout(()=>{
-    document.getElementById('edit-user-modal').style.display='none';
-    renderUsers();
-  },800);
-}
-
 </script>
-
-<!-- DETAIL MODAL -->
-<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;overflow-y:auto;padding:20px" onclick="closeModal(event)">
-  <div id="modal-box" style="background:#fff;border-radius:16px;max-width:600px;margin:20px auto;padding:0;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
-    <div id="modal-header" style="background:#1B3A2D;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
-      <div id="modal-title" style="font-size:15px;font-weight:800"></div>
-      <button onclick="document.getElementById('modal-overlay').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
-    </div>
-    <div id="modal-body" style="padding:20px"></div>
-  </div>
-</div>
-
-<!-- EDIT USER MODAL -->
-<div id="edit-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:16px;width:90%;max-width:400px;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div>
-        <div style="font-size:16px;font-weight:800;color:#1B3A2D">✏️ Edit User</div>
-        <div id="edit-uname-display" style="font-size:12px;color:#5D7A69;margin-top:2px"></div>
-      </div>
-      <button onclick="document.getElementById('edit-user-modal').style.display='none'" style="background:#F0F7F2;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
-    </div>
-    <input type="hidden" id="edit-uid">
-    <label style="font-size:12px;font-weight:700;color:#5D7A69;text-transform:uppercase">Full Name</label>
-    <input id="edit-name" placeholder="Full name" style="width:100%;padding:9px 12px;border:1.5px solid #C8E6D0;border-radius:9px;font-size:14px;margin-bottom:12px">
-    <label style="font-size:12px;font-weight:700;color:#5D7A69;text-transform:uppercase">New Password (leave empty to keep)</label>
-    <input id="edit-pass" type="password" placeholder="New password (optional)" style="width:100%;padding:9px 12px;border:1.5px solid #C8E6D0;border-radius:9px;font-size:14px;margin-bottom:12px">
-    <label style="font-size:12px;font-weight:700;color:#5D7A69;text-transform:uppercase">Role</label>
-    <select id="edit-role" style="width:100%;padding:9px 12px;border:1.5px solid #C8E6D0;border-radius:9px;font-size:14px;margin-bottom:12px">
-      <option value="cashier">Cashier</option>
-      <option value="admin">Admin</option>
-    </select>
-    <label style="font-size:12px;font-weight:700;color:#5D7A69;text-transform:uppercase">Branch</label>
-    <select id="edit-branch" style="width:100%;padding:9px 12px;border:1.5px solid #C8E6D0;border-radius:9px;font-size:14px;margin-bottom:16px">
-      <option value="all">All Branches</option>
-      <option value="AlRai">AlRai</option>
-      <option value="Aswaq AlQurain">Aswaq AlQurain</option>
-    </select>
-    <div id="edit-user-msg" style="font-size:13px;margin-bottom:10px;display:none"></div>
-    <button onclick="saveEditUser()" style="width:100%;background:#2D7A4F;color:#fff;border:none;border-radius:9px;padding:10px;font-size:14px;font-weight:700;cursor:pointer">Save Changes</button>
-  </div>
-</div>
 </body>
 </html>
