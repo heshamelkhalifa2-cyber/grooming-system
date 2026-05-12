@@ -537,7 +537,7 @@ function onVisitChange(){
 
 function onDiscountInput(){
   const v=parseFloat(document.getElementById('f-discount').value)||0;
-  if(v>20){document.getElementById('f-discount').value=20;document.getElementById('disc-warn').style.display='block';}
+  if(v>100){document.getElementById('f-discount').value=100;document.getElementById('disc-warn').style.display='block';}
   else{document.getElementById('disc-warn').style.display='none';}
   calcTotal();
 }
