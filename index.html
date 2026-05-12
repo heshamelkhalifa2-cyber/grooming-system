@@ -170,10 +170,17 @@ async function deleteRecord(id, event){
 }
 
 // ── EDIT USER ─────────────────────────────────────────────────────────────────
-function editUserById(id){
-  const u=_allUsers.find(x=>x.id===id);
+function editUserById(idx){
+  const u=_allUsers[idx];
   if(!u)return;
-  editUserModal(u.id,u.username,u.name||'',u.role,u.branch||'');
+  document.getElementById('edit-uid').value=u.id;
+  document.getElementById('edit-uname-display').textContent='@'+u.username;
+  document.getElementById('edit-name').value=u.name||'';
+  document.getElementById('edit-pass').value='';
+  document.getElementById('edit-role').value=u.role||'cashier';
+  document.getElementById('edit-branch').value=u.branch||'all';
+  document.getElementById('edit-user-msg').style.display='none';
+  document.getElementById('edit-user-modal').style.display='flex';
 }
 
 function editUserModal(id,username,name,role,branch){
@@ -1225,7 +1232,7 @@ async function renderUsers(){
   _allUsers=data||[];
   const el=document.getElementById('users-list');
   if(!data||!data.length){el.innerHTML=`<div class="empty">${t('noData')}</div>`;return;}
-  el.innerHTML=data.map(u=>`
+  el.innerHTML=data.map((u,idx)=>`
     <div class="user-item">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="user-avatar">${(u.name||u.username).substring(0,2).toUpperCase()}</div>
@@ -1235,10 +1242,8 @@ async function renderUsers(){
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        ${u.username!=='admin'?`
-          <button onclick="editUserById('${u.id}')" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">✏️ Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.username}')">${t('delete')}</button>
-        `:`<span style="font-size:11px;color:var(--muted)">${t('protected')}</span>`}
+        <button onclick="editUserById(${idx})" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✏️ Edit</button>
+        ${u.username!=='admin'?`<button onclick="deleteUser('${u.id}','${u.username}')" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑 Delete</button>`:`<span style="font-size:11px;color:var(--muted)">Protected</span>`}
       </div>
     </div>`).join('');
 }
@@ -1415,10 +1420,17 @@ async function deleteRecord(id, event){
 }
 
 // ── EDIT USER ─────────────────────────────────────────────────────────────────
-function editUserById(id){
-  const u=_allUsers.find(x=>x.id===id);
+function editUserById(idx){
+  const u=_allUsers[idx];
   if(!u)return;
-  editUserModal(u.id,u.username,u.name||'',u.role,u.branch||'');
+  document.getElementById('edit-uid').value=u.id;
+  document.getElementById('edit-uname-display').textContent='@'+u.username;
+  document.getElementById('edit-name').value=u.name||'';
+  document.getElementById('edit-pass').value='';
+  document.getElementById('edit-role').value=u.role||'cashier';
+  document.getElementById('edit-branch').value=u.branch||'all';
+  document.getElementById('edit-user-msg').style.display='none';
+  document.getElementById('edit-user-modal').style.display='flex';
 }
 
 function editUserModal(id,username,name,role,branch){
@@ -1472,7 +1484,10 @@ async function saveEditUser(){
 <div id="edit-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:16px;width:90%;max-width:400px;padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:16px;font-weight:800;color:#1B3A2D">✏️ Edit User</div>
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#1B3A2D">✏️ Edit User</div>
+        <div id="edit-uname-display" style="font-size:12px;color:#5D7A69;margin-top:2px"></div>
+      </div>
       <button onclick="document.getElementById('edit-user-modal').style.display='none'" style="background:#F0F7F2;border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
     </div>
     <input type="hidden" id="edit-uid">
