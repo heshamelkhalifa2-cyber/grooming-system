@@ -900,18 +900,29 @@ async function saveSession(){
   const discPct2=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
   const discAmt2=totalCharged*discPct2;
   const finalCharged2=totalCharged-discAmt2;
-  const {error}=await sb.from('records').insert([{
+  // Total pets across all services
+  const totalPets=servicesData.reduce((s,sv)=>s+(sv.qty||0),0);
+  
+  const recordData={
     date,branch,groomers,phone,client_name:cname,
     services:servicesData,
+    qty:totalPets,
     total:totalRev,free_units:totalFree,charged:finalCharged2,
-    discount_pct:discPct2*100,discount_amt:discAmt2,
     week,month,
     visit_type:document.getElementById('f-visit').value,
     notes:document.getElementById('f-notes').value,
     recorded_by:currentUser.username
-  }]);
+  };
+  // Add discount fields if they exist
+  if(discPct2>0){recordData.discount_pct=discPct2*100;recordData.discount_amt=discAmt2;}
 
-  if(error){showAlert('cashier-alert','Error saving. Please try again.','error');console.error(error);return;}
+  const {error}=await sb.from('records').insert([recordData]);
+
+  if(error){
+    console.error('Save error:',error);
+    showAlert('cashier-alert','Error: '+error.message,'error');
+    return;
+  }
   showAlert('cashier-alert',t('savedOk')+(totalFree>0?` 🎁 ${totalFree} free!`:''),'success');
   document.getElementById('f-discount').value='0';
   document.getElementById('discount-val-display').textContent='0.000 KD';
@@ -941,7 +952,7 @@ async function loadAllRecords(){
 
 function filterRecords(month,branch){
   return allRecords.filter(r=>{
-    const mOk=!month||month==='all'||r.month===month;
+    const mOk=!month||month==='all'||(r.month&&r.month.toLowerCase()===month.toLowerCase());
     const bOk=!branch||branch==='all'||r.branch===branch;
     return mOk&&bOk;
   });
@@ -981,8 +992,8 @@ function renderDashboard(){
     <div class="grm-row"><span>Aswaq AlQurain</span><span style="font-weight:800;color:var(--blue)">${alq.toFixed(3)} KD</span></div>`;
 
   const grmData=GROOMERS.map(g=>{
-    const gr=recs.filter(r=>r.groomers&&r.groomers.includes(g));
-    const gRev=gr.reduce((s,r)=>s+r.total/r.groomers.length,0);
+    const gr=recs.filter(r=>getGroomers(r).includes(g));
+    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,getGroomers(r).length),0);
     const gPets=gr.reduce((s,r)=>{
       if(r.services&&r.services.length)return s+r.services.reduce((a,sv)=>a+(sv.qty||0),0);
       return s+(r.qty||0);
@@ -1039,23 +1050,36 @@ function renderRecords(){
     }).join('')}</tbody></table>`;
 }
 
+function getGroomers(r){
+  // Handle groomers as array or string
+  if(!r.groomers) return [];
+  if(Array.isArray(r.groomers)) return r.groomers;
+  if(typeof r.groomers==='string'){
+    try{return JSON.parse(r.groomers);}catch(e){return [r.groomers];}
+  }
+  return [];
+}
+
 function renderCommissions(){
   const month=document.getElementById('comm-month').value;
-  const recs=allRecords.filter(r=>r.month===month);
+  const recs=allRecords.filter(r=>{
+    if(!r.month) return false;
+    return r.month.toLowerCase()===month.toLowerCase();
+  });
   const el=document.getElementById('comm-content');
   if(!recs.length){el.innerHTML=`<div class="empty"><div class="icon">💸</div>${t('noData')}</div>`;return;}
   const WEEKS=['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'];
   const grmTotals=GROOMERS.map(g=>{
-    const gr=recs.filter(r=>r.groomers&&r.groomers.includes(g));
-    const gRev=gr.reduce((s,r)=>s+r.total/r.groomers.length,0);
+    const gr=recs.filter(r=>getGroomers(r).includes(g));
+    const gRev=gr.reduce((s,r)=>s+(r.total||0)/Math.max(1,getGroomers(r).length),0);
     const gPets=gr.reduce((s,r)=>{if(r.services&&r.services.length)return s+r.services.reduce((a,sv)=>a+(sv.qty||0),0);return s+(r.qty||0);},0);
     return{g,gRev,gPets,gComm:gRev*COMM};
   }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
   el.innerHTML=grmTotals.map((x,rank)=>{
     const wkHtml=WEEKS.map((wk,wi)=>{
-      const wr=recs.filter(r=>r.week===wk&&r.groomers&&r.groomers.includes(x.g));
+      const wr=recs.filter(r=>r.week===wk&&getGroomers(r).includes(x.g));
       if(!wr.length)return'';
-      const wRev=wr.reduce((s,r)=>s+r.total/r.groomers.length,0);
+      const wRev=wr.reduce((s,r)=>s+(r.total||0)/Math.max(1,getGroomers(r).length),0);
       return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
         <span class="week-tag">${t('weekLabel')[wi]||wk}</span>
         <span style="font-size:12px">${wRev.toFixed(3)} KD — <b style="color:var(--teal-dark)">comm: ${(wRev*COMM).toFixed(3)} KD</b></span>
