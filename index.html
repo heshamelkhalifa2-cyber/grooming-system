@@ -233,11 +233,25 @@ body.rtl th,body.rtl td{text-align:right}
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
         <span id="t-total-free">Total Free</span><span id="st-free" style="color:#F39C12">0 units</span>
       </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px" id="discount-row" style="display:none">
+        <span id="t-discount-row">Discount</span><span id="st-discount" style="color:#F39C12">0.000 KD</span>
+      </div>
       <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800">
         <span id="t-total-paid">Total Charged</span><span id="st-paid" style="color:#A9DFBF">0.000 KD</span>
       </div>
     </div>
 
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0">
+      <div>
+        <label id="t-discount">Discount %</label>
+        <input type="number" id="f-discount" min="0" max="20" value="0" placeholder="0-20%" oninput="applyDiscount()" style="margin-bottom:8px">
+        <div id="discount-hint" style="font-size:11px;color:#8B6914;display:none;margin-top:-6px;margin-bottom:8px">⚠️ Max discount is 20%</div>
+      </div>
+      <div>
+        <label id="t-discount-val">Discount Value</label>
+        <div style="padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-weight:800;color:var(--red-dark);background:#FADBD8;margin-bottom:8px" id="discount-val-display">0.000 KD</div>
+      </div>
+    </div>
     <label id="t-notes">Notes (optional)</label>
     <textarea id="f-notes" placeholder="Any notes..."></textarea>
     <button class="btn btn-primary" onclick="saveSession()" id="t-save-btn">💾 Save Session</button>
@@ -337,13 +351,13 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const SERVICES={"Full Service":12.5,"Basic Shower":8.5,"Trimming Package":8.5,"Dry Shower - Kitten":4.0,"Dry Shower - Adult Cat":6.0,"Trimming Only":6.0,"Anal Gland Cleaning":4.0,"Cleaning Eyes/Ears":2.0,"Remove Hair Balls":2.0,"Teeth Brush":1.5,"Bottom Shaving Area":3.0,"Deshedding":2.0,"Trimming Paws":2.0,"Full Service - Small Dog":12.0,"Full Service - Medium Dog":13.0,"Full Service - Large Dog":15.0,"Full Service - XL Dog":17.0,"Basic Shower - Small Dog":8.0,"Basic Shower - Medium Dog":9.0,"Basic Shower - Large Dog":10.0,"Basic Shower - XL Dog":12.0,"Nail Trimming":2.0};
 const GROOMERS=["Helal Ahmed","Mahmoud Amir","Eric Recardo","Ralph","Oliver","Yeshi","Johary","Warren","Tabreez","Juvy"];
 const MONTHS=["May","June","July","August","September","October","November","December"];
-const FS_FREE=3,BS_FREE=5,COMM=0.10;
+const FS_FREE=2,BS_FREE=4,COMM=0.10;
 
 let currentUser=null,lang='en',allRecords=[],serviceLineCount=0;
 
 const T={
-en:{login:'Login',username:'Username',password:'Password',logout:'Logout',newSession:'New Grooming Session',date:'Date',branch:'Branch',grm1:'Groomer 1 *',grm2:'Groomer 2 (Sharing)',grm3:'Groomer 3 (Sharing)',grm4:'Groomer 4 (Sharing)',grm5:'Groomer 5 (Sharing)',cname:'Client Name',phone:'Client Phone *',services:'Services & Pets *',addSvc:'+ Add Service',visit:'Visit Type',notes:'Notes (optional)',saveBtn:'💾 Save Session',totalRev:'Total Revenue',totalFree:'Total Free',totalPaid:'Total Charged',dashboard:'📊 Dashboard',records:'📋 Records',commissions:'💸 Commissions',clients:'👥 Clients',users:'⚙️ Users',topGroomers:'Top Groomers',revenue:'Revenue',paid:'Paid (after free)',pets:'Pets',commission:'Commission',freeFS:'Free FS',freeBS:'Free BS',freeValue:'Free Value',allMonths:'All Months',visits:'Visits',groomer:'Groomer',searchPhone:'🔍 Search by phone or name...',addUser:'Add New User',currentUsers:'Current Users',delete:'Delete',protected:'Protected',noData:'No data found',newClient:'New client',savedOk:'Session saved!',errorFill:'Please fill all required fields.',errorLogin:'Incorrect username or password.',weekLabel:['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'],totalPets:'Total Pets',totalPaidLbl:'Total Paid',lastVisit:'Last Visit',freeGiven:'Free Given',serviceHistory:'Service History',times:'Times',avgPrice:'Avg Price',service:'Service',qty:'Qty'},
-ar:{login:'دخول',username:'اسم المستخدم',password:'كلمة المرور',logout:'خروج',newSession:'جلسة جروميثج جديدة',date:'التاريخ',branch:'الفرع',grm1:'الجرومر الأول *',grm2:'الجرومر الثاني (شيرينج)',grm3:'الجرومر الثالث',grm4:'الجرومر الرابع',grm5:'الجرومر الخامس',cname:'اسم العميل',phone:'تليفون العميل *',services:'الخدمات والـ Pets *',addSvc:'+ إضافة خدمة',visit:'نوع الزيارة',notes:'ملاحظات',saveBtn:'💾 حفظ الجلسة',totalRev:'إجمالي الإيرادات',totalFree:'إجمالي المجاني',totalPaid:'إجمالي المدفوع',dashboard:'📊 الداشبورد',records:'📋 السجلات',commissions:'💸 العمولات',clients:'👥 العملاء',users:'⚙️ المستخدمون',topGroomers:'أفضل الجرومرية',revenue:'الإيرادات',paid:'المدفوع',pets:'Pets',commission:'العمولة',freeFS:'مجاني FS',freeBS:'مجاني BS',freeValue:'قيمة الخصم',allMonths:'كل الشهور',visits:'زيارات',groomer:'الجرومر',searchPhone:'🔍 ابحث باسم أو تليفون العميل...',addUser:'إضافة مستخدم',currentUsers:'المستخدمون الحاليون',delete:'حذف',protected:'محمي',noData:'لا يوجد بيانات',newClient:'عميل جديد',savedOk:'تم الحفظ!',errorFill:'الرجاء ملء كل الحقول.',errorLogin:'اسم المستخدم أو كلمة المرور غلط.',weekLabel:['أسبوع 1','أسبوع 2','أسبوع 3','أسبوع 4'],totalPets:'إجمالي الـ Pets',totalPaidLbl:'إجمالي المدفوع',lastVisit:'آخر زيارة',freeGiven:'وحدات مجانية',serviceHistory:'تاريخ الخدمات',times:'مرات',avgPrice:'متوسط السعر',service:'الخدمة',qty:'الكمية'}
+en:{login:'Login',username:'Username',password:'Password',logout:'Logout',newSession:'New Grooming Session',date:'Date',branch:'Branch',grm1:'Groomer 1 *',grm2:'Groomer 2 (Sharing)',grm3:'Groomer 3 (Sharing)',grm4:'Groomer 4 (Sharing)',grm5:'Groomer 5 (Sharing)',cname:'Client Name',phone:'Client Phone *',services:'Services & Pets *',addSvc:'+ Add Service',visit:'Visit Type',notes:'Notes (optional)',saveBtn:'💾 Save Session',totalRev:'Total Revenue',discount:'Discount %',discountVal:'Discount Value',discountRow:'Discount',totalFree:'Total Free',totalPaid:'Total Charged',dashboard:'📊 Dashboard',records:'📋 Records',commissions:'💸 Commissions',clients:'👥 Clients',users:'⚙️ Users',topGroomers:'Top Groomers',revenue:'Revenue',paid:'Paid (after free)',pets:'Pets',commission:'Commission',freeFS:'Free FS',freeBS:'Free BS',freeValue:'Free Value',allMonths:'All Months',visits:'Visits',groomer:'Groomer',searchPhone:'🔍 Search by phone or name...',addUser:'Add New User',currentUsers:'Current Users',delete:'Delete',protected:'Protected',noData:'No data found',newClient:'New client',savedOk:'Session saved!',errorFill:'Please fill all required fields.',errorLogin:'Incorrect username or password.',weekLabel:['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'],totalPets:'Total Pets',totalPaidLbl:'Total Paid',lastVisit:'Last Visit',freeGiven:'Free Given',serviceHistory:'Service History',times:'Times',avgPrice:'Avg Price',service:'Service',qty:'Qty'},
+ar:{login:'دخول',username:'اسم المستخدم',password:'كلمة المرور',logout:'خروج',newSession:'جلسة جروميثج جديدة',date:'التاريخ',branch:'الفرع',grm1:'الجرومر الأول *',grm2:'الجرومر الثاني (شيرينج)',grm3:'الجرومر الثالث',grm4:'الجرومر الرابع',grm5:'الجرومر الخامس',cname:'اسم العميل',phone:'تليفون العميل *',services:'الخدمات والـ Pets *',addSvc:'+ إضافة خدمة',visit:'نوع الزيارة',notes:'ملاحظات',saveBtn:'💾 حفظ الجلسة',totalRev:'إجمالي الإيرادات',discount:'خصم %',discountVal:'قيمة الخصم',discountRow:'الخصم',totalFree:'إجمالي المجاني',totalPaid:'إجمالي المدفوع',dashboard:'📊 الداشبورد',records:'📋 السجلات',commissions:'💸 العمولات',clients:'👥 العملاء',users:'⚙️ المستخدمون',topGroomers:'أفضل الجرومرية',revenue:'الإيرادات',paid:'المدفوع',pets:'Pets',commission:'العمولة',freeFS:'مجاني FS',freeBS:'مجاني BS',freeValue:'قيمة الخصم',allMonths:'كل الشهور',visits:'زيارات',groomer:'الجرومر',searchPhone:'🔍 ابحث باسم أو تليفون العميل...',addUser:'إضافة مستخدم',currentUsers:'المستخدمون الحاليون',delete:'حذف',protected:'محمي',noData:'لا يوجد بيانات',newClient:'عميل جديد',savedOk:'تم الحفظ!',errorFill:'الرجاء ملء كل الحقول.',errorLogin:'اسم المستخدم أو كلمة المرور غلط.',weekLabel:['أسبوع 1','أسبوع 2','أسبوع 3','أسبوع 4'],totalPets:'إجمالي الـ Pets',totalPaidLbl:'إجمالي المدفوع',lastVisit:'آخر زيارة',freeGiven:'وحدات مجانية',serviceHistory:'تاريخ الخدمات',times:'مرات',avgPrice:'متوسط السعر',service:'الخدمة',qty:'الكمية'}
 };
 
 function t(k){return T[lang][k]||k}
@@ -481,7 +495,7 @@ async function calcTotal(){
         const svcs=r.services||[];
         svcs.forEach(s=>{if(s.service===l.svc)prevQty+=s.qty||0;});
       });
-      const thr=l.svc==='Full Service'?FS_FREE:l.svc==='Basic Shower'?BS_FREE:0;
+      const isCatFS=(l.svc==='Full Service');const isCatBS=(l.svc==='Basic Shower');const thr=isCatFS?FS_FREE:isCatBS?BS_FREE:0;
       if(thr>0)free=Math.floor((prevQty+l.qty)/thr)-Math.floor(prevQty/thr);
     }
     const charged=Math.max(0,l.qty-free)*price;
@@ -495,12 +509,19 @@ async function calcTotal(){
     if(f)f.textContent=free;
     if(c)c.textContent=charged.toFixed(3)+' KD';
   }
+  const discPct=Math.min(20,parseFloat(document.getElementById('f-discount')?.value)||0)/100;
+  const discAmt=totalCharged*discPct;
+  const finalCharged=totalCharged-discAmt;
   const st=document.getElementById('session-total');
   if(lines.length>0){
     st.style.display='block';
     document.getElementById('st-rev').textContent=totalRev.toFixed(3)+' KD';
     document.getElementById('st-free').textContent=totalFree+' units';
-    document.getElementById('st-paid').textContent=totalCharged.toFixed(3)+' KD';
+    const dr=document.getElementById('discount-row');
+    if(discAmt>0){dr.style.display='flex';document.getElementById('st-discount').textContent='-'+discAmt.toFixed(3)+' KD';}
+    else{dr.style.display='none';}
+    document.getElementById('st-paid').textContent=finalCharged.toFixed(3)+' KD';
+    document.getElementById('discount-val-display').textContent=discAmt.toFixed(3)+' KD';
   }else{st.style.display='none';}
 }
 
@@ -518,6 +539,18 @@ async function onPhoneInput(){
   }else{
     hint.textContent=`🆕 ${t('newClient')}`;
     hint.style.display='block';
+  }
+  calcTotal();
+}
+
+function applyDiscount(){
+  const disc=parseFloat(document.getElementById('f-discount').value)||0;
+  const hint=document.getElementById('discount-hint');
+  if(disc>20){
+    document.getElementById('f-discount').value=20;
+    hint.style.display='block';
+  } else {
+    hint.style.display='none';
   }
   calcTotal();
 }
@@ -552,17 +585,21 @@ async function saveSession(){
     const {data:prev}=await sb.from('records').select('services').eq('phone',phone);
     let prevQty=0;
     if(prev)prev.forEach(r=>{(r.services||[]).forEach(s=>{if(s.service===l.svc)prevQty+=s.qty||0;});});
-    const thr=l.svc==='Full Service'?FS_FREE:l.svc==='Basic Shower'?BS_FREE:0;
+    const isCatFS=(l.svc==='Full Service');const isCatBS=(l.svc==='Basic Shower');const thr=isCatFS?FS_FREE:isCatBS?BS_FREE:0;
     const free=thr>0?Math.floor((prevQty+l.qty)/thr)-Math.floor(prevQty/thr):0;
     const charged=Math.max(0,l.qty-free)*price;
     totalRev+=total;totalFree+=free;totalCharged+=charged;
     servicesData.push({service:l.svc,qty:l.qty,price,total,free_units:free,charged});
   }
 
+  const discPct2=Math.min(20,parseFloat(document.getElementById('f-discount').value)||0)/100;
+  const discAmt2=totalCharged*discPct2;
+  const finalCharged2=totalCharged-discAmt2;
   const {error}=await sb.from('records').insert([{
     date,branch,groomers,phone,client_name:cname,
     services:servicesData,
-    total:totalRev,free_units:totalFree,charged:totalCharged,
+    total:totalRev,free_units:totalFree,charged:finalCharged2,
+    discount_pct:discPct2*100,discount_amt:discAmt2,
     week,month,
     visit_type:document.getElementById('f-visit').value,
     notes:document.getElementById('f-notes').value,
@@ -571,6 +608,8 @@ async function saveSession(){
 
   if(error){showAlert('cashier-alert','Error saving. Please try again.','error');console.error(error);return;}
   showAlert('cashier-alert',t('savedOk')+(totalFree>0?` 🎁 ${totalFree} free!`:''),'success');
+  document.getElementById('f-discount').value='0';
+  document.getElementById('discount-val-display').textContent='0.000 KD';
   document.getElementById('f-phone').value='';
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
