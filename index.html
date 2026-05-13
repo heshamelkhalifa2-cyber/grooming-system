@@ -336,6 +336,7 @@ body.rtl th,body.rtl td{text-align:right}
   <!-- RECORDS -->
   <div id="sec-records" class="tab-section">
     <div class="filter-row">
+      <select id="rec-year" onchange="renderRecords()" style="min-width:100px;margin-bottom:0"></select>
       <select id="rec-month" onchange="renderRecords()" style="margin-bottom:0"><option value="all">All Months</option></select>
       <select id="rec-branch" onchange="renderRecords()" style="margin-bottom:0">
         <option value="all">All Branches</option><option>AlRai</option><option>Aswaq AlQurain</option>
@@ -347,6 +348,7 @@ body.rtl th,body.rtl td{text-align:right}
   <!-- COMMISSIONS -->
   <div id="sec-commissions" class="tab-section">
     <div class="filter-row">
+      <select id="comm-year" onchange="renderCommissions()" style="min-width:100px;margin-bottom:0"></select>
       <select id="comm-month" onchange="renderCommissions()" style="max-width:180px;margin-bottom:0"></select>
     </div>
     <div id="comm-content"></div>
@@ -727,15 +729,17 @@ async function saveSession(){
 
 // ── ADMIN HELPERS ─────────────────────────────────────────────────────────────
 function initDropdowns(){
-  // Year selector
-  const yearSel=document.getElementById('dash-year');
-  if(yearSel){
-    const curYear=new Date().getFullYear();
-    yearSel.innerHTML='<option value="all">All Years</option>';
+  const curYear=new Date().getFullYear();
+  // Year selectors for all tabs
+  ['dash-year','rec-year','comm-year'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const hasAll=id!=='comm-year';
+    sel.innerHTML=(hasAll?'<option value="all">All Years</option>':'');
     for(let y=2025;y<=2050;y++){
-      yearSel.innerHTML+='<option value="'+y+'"'+(y===curYear?' selected':'')+'>'+y+'</option>';
+      sel.innerHTML+='<option value="'+y+'"'+(y===curYear?' selected':'')+'>'+y+'</option>';
     }
-  }
+    if(id==='comm-year')sel.value=String(curYear);
+  });
   // Month selectors
   ['dash-month','rec-month','comm-month'].forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
@@ -836,7 +840,8 @@ function row(a,b){return'<div class="grm-row"><span>'+a+'</span>'+b+'</div>';}
 function renderRecords(){
   const month=document.getElementById('rec-month').value;
   const branch=document.getElementById('rec-branch').value;
-  const recs=filterRecs(month,branch);
+  const year=document.getElementById('rec-year')?document.getElementById('rec-year').value:'all';
+  const recs=filterRecs(month,branch,year);
   const el=document.getElementById('records-table');
   if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">📋</div>'+t('noData')+'</div>';return;}
   window._recs=recs;
@@ -894,7 +899,12 @@ function openRecModal(i){
 // ── COMMISSIONS ───────────────────────────────────────────────────────────────
 function renderCommissions(){
   const month=document.getElementById('comm-month').value;
-  const recs=allRecs.filter(r=>r.month&&r.month.toLowerCase()===month.toLowerCase());
+  const year=document.getElementById('comm-year')?document.getElementById('comm-year').value:String(new Date().getFullYear());
+  const recs=allRecs.filter(r=>{
+    const mOk=r.month&&r.month.toLowerCase()===month.toLowerCase();
+    const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
+    return mOk&&yOk;
+  });
   const el=document.getElementById('comm-content');
   if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">💸</div>'+t('noData')+'</div>';return;}
   const WEEKS=['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'];
