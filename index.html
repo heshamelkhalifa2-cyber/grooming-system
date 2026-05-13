@@ -1204,7 +1204,7 @@ function renderCashierRecords(){
       return txt;
     }).join('<br>'):(r.service||'');
     const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
-    const kwTime=r.created_at?new Date(new Date(r.created_at).toLocaleString('en-US',{timeZone:'Asia/Kuwait'})).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):'';
+    const kwTime=r.created_at?new Date(r.created_at).toLocaleString('en-US',{timeZone:'Asia/Kuwait',hour:'2-digit',minute:'2-digit',hour12:true}):'';
     return'<div class="card" style="margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
       +'<div><div style="font-weight:800;font-size:14px">'+r.date+(kwTime?' &nbsp;<span style="font-size:11px;color:var(--muted);font-weight:400">⏰ '+kwTime+' (KWT)</span>':'')+'</div>'
@@ -1235,7 +1235,7 @@ function printCashierRecords(){
   const rows=recs.map(r=>{
     const svcs=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty+(s.pet_name?' ('+s.pet_name+')':'')+(s.vaccinated?' 💉':' ⚠️')).join(', '):(r.service||'');
     const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
-    const kwTime=r.created_at?new Date(new Date(r.created_at).toLocaleString('en-US',{timeZone:'Asia/Kuwait'})).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):'';
+    const kwTime=r.created_at?new Date(r.created_at).toLocaleString('en-US',{timeZone:'Asia/Kuwait',hour:'2-digit',minute:'2-digit',hour12:true}):'';
     return'<tr>'
       +'<td>'+r.date+'</td>'
       +'<td>'+kwTime+'</td>'
