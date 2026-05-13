@@ -455,6 +455,7 @@ async function doLogin(){
     if(error||!data){showAlert('login-alert',t('errorLogin'),'error');}
     else{
       CU=data;
+      localStorage.setItem('pp_user', JSON.stringify(data));
       document.getElementById('topbar-user').textContent=(data.name||data.username)+' — '+(data.role==='admin'?'Admin':'Cashier');
       document.getElementById('page-login').classList.remove('active');
       document.getElementById('page-app').classList.add('active');
@@ -471,6 +472,7 @@ async function doLogin(){
 
 function doLogout(){
   CU=null;allRecs=[];
+  localStorage.removeItem('pp_user');
   document.getElementById('page-app').classList.remove('active');
   document.getElementById('page-login').classList.add('active');
   document.getElementById('view-admin').style.display='none';
@@ -1040,6 +1042,28 @@ function switchTab(tab){
   else if(tab==='users')renderUsers();
   else renderDashboard();
 }
+
+// Auto-login from localStorage
+(async function autoLogin(){
+  const saved = localStorage.getItem('pp_user');
+  if(!saved) return;
+  try {
+    const data = JSON.parse(saved);
+    // Verify user still exists in DB
+    const {data:dbUser, error} = await sb.from('users').select('*').eq('id', data.id).single();
+    if(error || !dbUser) { localStorage.removeItem('pp_user'); return; }
+    CU = dbUser;
+    document.getElementById('topbar-user').textContent=(dbUser.name||dbUser.username)+' — '+(dbUser.role==='admin'?'Admin':'Cashier');
+    document.getElementById('page-login').classList.remove('active');
+    document.getElementById('page-app').classList.add('active');
+    if(dbUser.role==='admin'){
+      document.getElementById('view-admin').style.display='block';
+      initDropdowns(); await loadRecs(); renderDashboard();
+    } else {
+      document.getElementById('view-cashier').style.display='block'; initCashier();
+    }
+  } catch(e) { localStorage.removeItem('pp_user'); }
+})();
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
