@@ -1183,6 +1183,7 @@ async function loadCashierRecords(){
 }
 
 function renderCashierRecords(){
+  if(cashierRecs.length>0)console.log('First record recorded_time:',cashierRecs[0].recorded_time,'created_at:',cashierRecs[0].created_at);
   const month=document.getElementById('cashier-rec-month')?document.getElementById('cashier-rec-month').value:'all';
   const q=(document.getElementById('cashier-search-input')?document.getElementById('cashier-search-input').value.trim():'').toLowerCase();
   let recs=cashierRecs;
@@ -1212,8 +1213,16 @@ function renderCashierRecords(){
       return txt;
     }).join('<br>'):(r.service||'');
     const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
+    // recorded_time is stored as HH:MM Kuwait time
     const kwTime=(function(){
-      if(r.recorded_time)return r.recorded_time;
+      if(r.recorded_time){
+        // Convert HH:MM to 12h format
+        const parts=r.recorded_time.split(':');
+        let h=parseInt(parts[0]),m=parts[1]||'00';
+        const ampm=h>=12?'PM':'AM';
+        h=h%12;if(h===0)h=12;
+        return h+':'+m+' '+ampm;
+      }
       if(!r.created_at)return'';
       const d=new Date(r.created_at);
       const kwt=new Date(d.getTime()+(3*60*60*1000));
@@ -1252,8 +1261,16 @@ function printCashierRecords(){
   const rows=recs.map(r=>{
     const svcs=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty+(s.pet_name?' ('+s.pet_name+')':'')+(s.vaccinated?' 💉':' ⚠️')).join(', '):(r.service||'');
     const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
+    // recorded_time is stored as HH:MM Kuwait time
     const kwTime=(function(){
-      if(r.recorded_time)return r.recorded_time;
+      if(r.recorded_time){
+        // Convert HH:MM to 12h format
+        const parts=r.recorded_time.split(':');
+        let h=parseInt(parts[0]),m=parts[1]||'00';
+        const ampm=h>=12?'PM':'AM';
+        h=h%12;if(h===0)h=12;
+        return h+':'+m+' '+ampm;
+      }
       if(!r.created_at)return'';
       const d=new Date(r.created_at);
       const kwt=new Date(d.getTime()+(3*60*60*1000));
