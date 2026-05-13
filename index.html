@@ -338,8 +338,18 @@ body.rtl th,body.rtl td{text-align:right}
     <div class="filter-row">
       <select id="rec-year" onchange="renderRecords()" style="min-width:100px;margin-bottom:0"></select>
       <select id="rec-month" onchange="renderRecords()" style="margin-bottom:0"><option value="all">All Months</option></select>
+      <select id="rec-week" onchange="renderRecords()" style="margin-bottom:0">
+        <option value="all">All Weeks</option>
+        <option value="Wk1 (1-7)">Week 1 (1-7)</option>
+        <option value="Wk2 (8-15)">Week 2 (8-15)</option>
+        <option value="Wk3 (16-22)">Week 3 (16-22)</option>
+        <option value="Wk4 (23-End)">Week 4 (23-End)</option>
+      </select>
       <select id="rec-branch" onchange="renderRecords()" style="margin-bottom:0">
         <option value="all">All Branches</option><option>AlRai</option><option>Aswaq AlQurain</option>
+      </select>
+      <select id="rec-groomer" onchange="renderRecords()" style="margin-bottom:0">
+        <option value="all">All Groomers</option>
       </select>
     </div>
     <div class="card" style="padding:0"><div class="table-wrap" id="records-table"></div></div>
@@ -349,7 +359,17 @@ body.rtl th,body.rtl td{text-align:right}
   <div id="sec-commissions" class="tab-section">
     <div class="filter-row">
       <select id="comm-year" onchange="renderCommissions()" style="min-width:100px;margin-bottom:0"></select>
-      <select id="comm-month" onchange="renderCommissions()" style="max-width:180px;margin-bottom:0"></select>
+      <select id="comm-month" onchange="renderCommissions()" style="max-width:160px;margin-bottom:0"></select>
+      <select id="comm-week" onchange="renderCommissions()" style="margin-bottom:0">
+        <option value="all">All Weeks</option>
+        <option value="Wk1 (1-7)">Week 1 (1-7)</option>
+        <option value="Wk2 (8-15)">Week 2 (8-15)</option>
+        <option value="Wk3 (16-22)">Week 3 (16-22)</option>
+        <option value="Wk4 (23-End)">Week 4 (23-End)</option>
+      </select>
+      <select id="comm-groomer" onchange="renderCommissions()" style="margin-bottom:0">
+        <option value="all">All Groomers</option>
+      </select>
     </div>
     <div id="comm-content"></div>
   </div>
@@ -740,6 +760,12 @@ function initDropdowns(){
     }
     if(id==='comm-year')sel.value=String(curYear);
   });
+  // Groomer selectors
+  ['rec-groomer','comm-groomer'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    sel.innerHTML='<option value="all">All Groomers</option>';
+    GROOMERS.forEach(g=>{const o=document.createElement('option');o.value=g;o.text=g;sel.appendChild(o);});
+  });
   // Month selectors
   ['dash-month','rec-month','comm-month'].forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
@@ -841,7 +867,11 @@ function renderRecords(){
   const month=document.getElementById('rec-month').value;
   const branch=document.getElementById('rec-branch').value;
   const year=document.getElementById('rec-year')?document.getElementById('rec-year').value:'all';
-  const recs=filterRecs(month,branch,year);
+  const week=document.getElementById('rec-week')?document.getElementById('rec-week').value:'all';
+  const groomer=document.getElementById('rec-groomer')?document.getElementById('rec-groomer').value:'all';
+  let recs=filterRecs(month,branch,year);
+  if(week!=='all')recs=recs.filter(r=>r.week===week);
+  if(groomer!=='all')recs=recs.filter(r=>grmArr(r).includes(groomer));
   const el=document.getElementById('records-table');
   if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">📋</div>'+t('noData')+'</div>';return;}
   window._recs=recs;
@@ -900,37 +930,96 @@ function openRecModal(i){
 function renderCommissions(){
   const month=document.getElementById('comm-month').value;
   const year=document.getElementById('comm-year')?document.getElementById('comm-year').value:String(new Date().getFullYear());
-  const recs=allRecs.filter(r=>{
+  const selGroomer=document.getElementById('comm-groomer')?document.getElementById('comm-groomer').value:'all';
+  const week=document.getElementById('comm-week')?document.getElementById('comm-week').value:'all';
+  let recs=allRecs.filter(r=>{
     const mOk=r.month&&r.month.toLowerCase()===month.toLowerCase();
     const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
-    return mOk&&yOk;
+    const wOk=week==='all'||r.week===week;
+    return mOk&&yOk&&wOk;
   });
   const el=document.getElementById('comm-content');
   if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">💸</div>'+t('noData')+'</div>';return;}
+  // Total summary bar
+  const totalRev=recs.reduce((s,r)=>s+(r.charged||0),0);
+  const totalComm=totalRev*COMM;
+  const totalPets=recs.reduce((s,r)=>s+getPets(r),0);
+  const summaryBar='<div style="background:var(--navy);color:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">'
+    +'<div><div style="font-size:11px;opacity:0.7;margin-bottom:4px">Total Revenue</div><div style="font-size:16px;font-weight:800">'+totalRev.toFixed(3)+' KD</div></div>'
+    +'<div><div style="font-size:11px;opacity:0.7;margin-bottom:4px">Total Commission</div><div style="font-size:16px;font-weight:800;color:#F39C12">'+totalComm.toFixed(3)+' KD</div></div>'
+    +'<div><div style="font-size:11px;opacity:0.7;margin-bottom:4px">Total Pets</div><div style="font-size:16px;font-weight:800">'+totalPets+'</div></div>'
+    +'</div>';
   const WEEKS=['Wk1 (1-7)','Wk2 (8-15)','Wk3 (16-22)','Wk4 (23-End)'];
-  const grmData=GROOMERS.map(g=>{
+  
+  // Filter groomers list based on selection
+  const groomersToShow=selGroomer==='all'?GROOMERS:[selGroomer];
+  
+  const grmData=groomersToShow.map(g=>{
     const gr=recs.filter(r=>grmArr(r).includes(g));
     const gRev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
     const gPets=gr.reduce((s,r)=>s+getPets(r),0);
-    return{g,gRev,gPets,gComm:gRev*COMM};
+    const gSessions=gr.length;
+    const gSharing=gr.filter(r=>grmArr(r).length>1).length;
+    return{g,gRev,gPets,gComm:gRev*COMM,gSessions,gSharing,gr};
   }).filter(x=>x.gRev>0).sort((a,b)=>b.gRev-a.gRev);
-  el.innerHTML=grmData.map((x,rank)=>{
+
+  el.innerHTML=summaryBar+grmData.map((x,rank)=>{
     const wks=WEEKS.map((wk,wi)=>{
-      const wr=recs.filter(r=>r.week===wk&&grmArr(r).includes(x.g));
+      const wr=x.gr.filter(r=>r.week===wk);
       if(!wr.length)return'';
       const wRev=wr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
-      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">'
+      const wPets=wr.reduce((s,r)=>s+getPets(r),0);
+      const wSharing=wr.filter(r=>grmArr(r).length>1);
+      return'<div style="padding:8px 0;border-bottom:1px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
         +'<span class="week-tag">'+(t('weekLabel')[wi]||wk)+'</span>'
-        +'<span style="font-size:12px">'+wRev.toFixed(3)+' KD — <b style="color:var(--teal-dark)">Comm: '+(wRev*COMM).toFixed(3)+' KD</b></span>'
+        +'<span style="font-size:12px"><b style="color:var(--teal-dark)">'+wRev.toFixed(3)+' KD</b> &nbsp; Comm: <b style="color:var(--red-dark)">'+(wRev*COMM).toFixed(3)+' KD</b> &nbsp; <span style="color:var(--muted)">'+wPets+' pets</span></span>'
+        +'</div>'
+        // Sharing sessions detail
+        +(wSharing.length?'<div style="margin-top:4px">'+wSharing.map(r=>{
+          const others=grmArr(r).filter(g2=>g2!==x.g);
+          const myShare=((r.charged||0)/Math.max(1,grmArr(r).length));
+          return'<div style="font-size:11px;color:var(--muted);padding:3px 8px;background:var(--teal-light);border-radius:6px;margin-top:3px">'
+            +'🤝 Sharing: '+grmArr(r).join(' + ')+' — '+r.date
+            +' — My share: <b style="color:var(--teal-dark)">'+myShare.toFixed(3)+' KD</b>'
+            +' ('+getPets(r)+' pets)</div>';
+        }).join('')+'</div>':'')
         +'</div>';
     }).join('');
+
+    // Sessions detail
+    const sessionDetails=x.gr.map(r=>{
+      const myShare=((r.charged||0)/Math.max(1,grmArr(r).length));
+      const isSharing=grmArr(r).length>1;
+      const svcs=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty).join(', '):(r.service||'');
+      return'<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start">'
+        +'<div>'
+        +'<div style="font-weight:600">'+r.date+' &nbsp;<span style="color:var(--muted);font-weight:400">'+r.branch+'</span>'+(isSharing?'&nbsp;<span class="badge badge-blue">🤝 Sharing ('+grmArr(r).length+')</span>':'')+'</div>'
+        +'<div style="color:var(--muted);margin-top:2px">'+svcs+'</div>'
+        +(isSharing?'<div style="color:var(--muted);font-size:11px">With: '+grmArr(r).filter(g2=>g2!==x.g).join(', ')+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0;padding-right:8px">'
+        +'<div style="font-weight:700;color:var(--teal-dark)">'+myShare.toFixed(3)+' KD</div>'
+        +'<div style="font-size:11px;color:var(--muted)">'+getPets(r)+' pets</div>'
+        +'</div></div>';
+    }).join('');
+
     return'<div class="card">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      // Header
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;gap:8px"><div class="rank-circle">'+(rank+1)+'</div>'
-      +'<div><div style="font-weight:800">'+x.g+'</div><div style="font-size:12px;color:var(--muted)">'+x.gPets+' pets</div></div></div>'
-      +'<div style="text-align:right"><div style="font-size:13px;color:var(--muted)">'+x.gRev.toFixed(3)+' KD</div>'
-      +'<div style="font-size:16px;font-weight:800;color:var(--red-dark)">Comm: '+x.gComm.toFixed(3)+' KD</div></div>'
-      +'</div>'+wks+'</div>';
+      +'<div><div style="font-weight:800;font-size:15px">'+x.g+'</div>'
+      +'<div style="font-size:12px;color:var(--muted)">'+x.gSessions+' sessions &nbsp;·&nbsp; '+x.gPets+' pets'+(x.gSharing>0?' &nbsp;·&nbsp; <span class="badge badge-blue">🤝 '+x.gSharing+' sharing</span>':'')+'</div>'
+      +'</div></div>'
+      +'<div style="text-align:right">'
+      +'<div style="font-size:13px;color:var(--muted)">Revenue: '+x.gRev.toFixed(3)+' KD</div>'
+      +'<div style="font-size:18px;font-weight:800;color:var(--red-dark)">Comm: '+x.gComm.toFixed(3)+' KD</div>'
+      +'</div></div>'
+      // Weekly breakdown
+      +'<details style="margin-bottom:10px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--navy);padding:4px 0">📅 Weekly Breakdown</summary><div style="margin-top:6px">'+wks+'</div></details>'
+      // Sessions detail
+      +'<details><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--navy);padding:4px 0">📋 All Sessions ('+x.gSessions+')</summary><div style="margin-top:6px">'+sessionDetails+'</div></details>'
+      +'</div>';
   }).join('');
 }
 
