@@ -201,9 +201,12 @@ body.rtl th,body.rtl td{text-align:right}
 <!-- CASHIER -->
 <div id="view-cashier" style="display:none">
 <div style="background:var(--card);border-bottom:1px solid var(--border);padding:0 20px">
-  <div style="display:flex;gap:0;max-width:960px;margin:0 auto">
-    <button id="ctab-new" onclick="switchCashierTab('new')" style="padding:12px 20px;border:none;border-bottom:3px solid var(--teal);background:transparent;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit">✂️ New Session</button>
-    <button id="ctab-records" onclick="switchCashierTab('records')" style="padding:12px 20px;border:none;border-bottom:3px solid transparent;background:transparent;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit">📋 My Records</button>
+  <div style="display:flex;gap:0;max-width:960px;margin:0 auto;align-items:center;justify-content:space-between">
+    <div style="display:flex">
+      <button id="ctab-new" onclick="switchCashierTab('new')" style="padding:12px 20px;border:none;border-bottom:3px solid var(--teal);background:transparent;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit">✂️ New Session</button>
+      <button id="ctab-records" onclick="switchCashierTab('records')" style="padding:12px 20px;border:none;border-bottom:3px solid transparent;background:transparent;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit">📋 My Records</button>
+    </div>
+    <button id="cashier-sound-btn" onclick="toggleCashierSound()" style="background:var(--teal-light);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--navy)">🔇 Sound Off</button>
   </div>
 </div>
 <div id="cashier-new-tab">
@@ -305,7 +308,8 @@ body.rtl th,body.rtl td{text-align:right}
     <button class="tab" onclick="switchTab('records')" id="tab-records">📋 Records</button>
     <button class="tab" onclick="switchTab('commissions')" id="tab-commissions">💸 Commissions</button>
     <button class="tab" onclick="switchTab('clients')" id="tab-clients">👥 Clients</button>
-    <button class="tab" onclick="switchTab('users')" id="tab-users">⚙️ Users</button>
+    <button class="tab" onclick="switchTab('users')" id="tab-users">👥 Users</button>
+    <button class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</button>
   </div>
 
   <!-- DASHBOARD -->
@@ -689,7 +693,7 @@ async function saveSession(){
   const phone=document.getElementById('f-phone').value.trim();
   const cname=document.getElementById('f-cname').value.trim();
   const lines=getLines();
-  if(!date||!branch||!grm1||!phone||!lines.length){showAlert('cashier-alert',t('errorFill'),'error');return;}
+  if(!date||!branch||!grm1||!phone||!lines.length){showAlert('cashier-alert',t('errorFill'),'error');playSound('error');return;}
   const groomers=[grm1,
     document.getElementById('f-grm2').value,
     document.getElementById('f-grm3').value,
@@ -734,6 +738,7 @@ async function saveSession(){
   const {error}=await sb.from('records').insert([rec]);
   if(error){showAlert('cashier-alert','Error: '+error.message,'error');console.error(error);return;}
   showAlert('cashier-alert',t('savedOk')+(totFree>0?' 🎁 '+totFree+' free!':''),'success');
+  if(totFree>0)playSound('free');else playSound('success');
   document.getElementById('f-phone').value='';
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
@@ -1189,6 +1194,7 @@ function switchTab(tab){
   else if(tab==='commissions')renderCommissions();
   else if(tab==='clients')renderClients();
   else if(tab==='users')renderUsers();
+  else if(tab==='settings')renderSettings();
   else renderDashboard();
 }
 
@@ -1410,6 +1416,218 @@ function printCashierRecords(){
     +'</table></body></html>');
   w.document.close();
 }
+
+
+// ── SETTINGS STORAGE ─────────────────────────────────────────────────────────
+let appSettings = {
+  commRate: 0.10,
+  fsFree: 3,
+  bsFree: 5,
+  soundOn: false,
+  branches: ['AlRai','Aswaq AlQurain'],
+  services: null // null = use default SVCS
+};
+
+function loadSettings(){
+  try{
+    const saved=localStorage.getItem('pp_settings');
+    if(saved){
+      const s=JSON.parse(saved);
+      appSettings={...appSettings,...s};
+      // Apply settings
+      COMM=appSettings.commRate;
+      FS_FREE=appSettings.fsFree;
+      BS_FREE=appSettings.bsFree;
+      if(appSettings.services)Object.assign(SVCS,appSettings.services);
+    }
+  }catch(e){}
+}
+
+function saveSettings(){
+  appSettings.services={...SVCS};
+  localStorage.setItem('pp_settings',JSON.stringify(appSettings));
+}
+
+// ── SOUNDS ────────────────────────────────────────────────────────────────────
+let cashierSoundOn=false;
+
+function toggleCashierSound(){
+  cashierSoundOn=!cashierSoundOn;
+  const btn=document.getElementById('cashier-sound-btn');
+  if(btn){btn.textContent=cashierSoundOn?'🔔 Sound On':'🔇 Sound Off';btn.style.background=cashierSoundOn?'var(--teal)':'var(--teal-light)';btn.style.color=cashierSoundOn?'#fff':'var(--navy)';}
+}
+
+function playSound(type){
+  if(!cashierSoundOn)return;
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    if(type==='success'){
+      osc.frequency.setValueAtTime(523,ctx.currentTime);
+      osc.frequency.setValueAtTime(659,ctx.currentTime+0.1);
+      osc.frequency.setValueAtTime(784,ctx.currentTime+0.2);
+      gain.gain.setValueAtTime(0.3,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.5);
+    }else if(type==='error'){
+      osc.frequency.setValueAtTime(200,ctx.currentTime);
+      osc.frequency.setValueAtTime(150,ctx.currentTime+0.15);
+      gain.gain.setValueAtTime(0.3,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);
+      osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.3);
+    }else if(type==='free'){
+      [523,659,784,1047].forEach((f,i)=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.frequency.value=f;
+        g.gain.setValueAtTime(0.25,ctx.currentTime+i*0.1);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.1+0.2);
+        o.start(ctx.currentTime+i*0.1);o.stop(ctx.currentTime+i*0.1+0.2);
+      });
+    }
+  }catch(e){}
+}
+
+// ── SETTINGS PAGE ─────────────────────────────────────────────────────────────
+function saveSoundSetting(){
+  const on=document.getElementById('setting-sounds').checked;
+  document.getElementById('sound-label').textContent=on?'On':'Off';
+}
+
+function saveCommRate(){
+  const v=parseFloat(document.getElementById('setting-comm').value);
+  if(!v||v<1||v>50){showAlert('settings-alert','Enter a valid rate (1-50%)','error');return;}
+  COMM=v/100;
+  appSettings.commRate=COMM;
+  saveSettings();
+  document.getElementById('comm-rate-display').textContent=v;
+  showAlert('settings-alert','Commission rate updated to '+v+'%','success');
+}
+
+function saveFreeRules(){
+  const fs=parseInt(document.getElementById('setting-fs-free').value);
+  const bs=parseInt(document.getElementById('setting-bs-free').value);
+  if(!fs||fs<1){showAlert('settings-alert','Enter valid Full Service free rule','error');return;}
+  if(!bs||bs<1){showAlert('settings-alert','Enter valid Basic Shower free rule','error');return;}
+  FS_FREE=fs;BS_FREE=bs;
+  appSettings.fsFree=fs;appSettings.bsFree=bs;
+  saveSettings();
+  document.getElementById('fs-free-display').textContent=fs;
+  document.getElementById('bs-free-display').textContent=bs;
+  showAlert('settings-alert','Free rules updated!','success');
+}
+
+function renderServicesList(){
+  const el=document.getElementById('services-list');if(!el)return;
+  const entries=Object.entries(SVCS);
+  el.innerHTML='';
+  entries.forEach(([name,price])=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)';
+    const inp=document.createElement('input');
+    inp.type='number';inp.value=price;inp.min='0';inp.step='0.5';
+    inp.style.cssText='width:80px;margin-bottom:0;padding:5px 8px;font-size:13px;border:1.5px solid var(--border);border-radius:6px';
+    inp.addEventListener('change',function(){updateSvcPrice(name,this.value);});
+    const delBtn=document.createElement('button');
+    delBtn.textContent='🗑';
+    delBtn.style.cssText='background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit';
+    delBtn.addEventListener('click',function(){deleteSvc(name);});
+    const left=document.createElement('span');
+    left.style.cssText='font-size:13px;font-weight:600';left.textContent=name;
+    const right=document.createElement('div');
+    right.style.cssText='display:flex;align-items:center;gap:8px';
+    const kdSpan=document.createElement('span');
+    kdSpan.style.cssText='font-size:12px;color:var(--muted)';kdSpan.textContent='KD';
+    right.appendChild(inp);right.appendChild(kdSpan);right.appendChild(delBtn);
+    row.appendChild(left);row.appendChild(right);
+    el.appendChild(row);
+  });
+}
+
+function updateSvcPrice(name,val){
+  const p=parseFloat(val);
+  if(p>=0){SVCS[name]=p;saveSettings();showAlert('settings-alert',name+' price updated to '+p.toFixed(3)+' KD','success');}
+}
+
+function deleteSvc(name){
+  if(!confirm('Delete service "'+name+'"?'))return;
+  delete SVCS[name];
+  saveSettings();renderServicesList();
+  showAlert('settings-alert',name+' deleted','success');
+}
+
+function addService(){
+  const name=document.getElementById('new-svc-name').value.trim();
+  const price=parseFloat(document.getElementById('new-svc-price').value);
+  if(!name){showAlert('settings-alert','Enter service name','error');return;}
+  if(isNaN(price)||price<0){showAlert('settings-alert','Enter valid price','error');return;}
+  SVCS[name]=price;
+  saveSettings();renderServicesList();
+  document.getElementById('new-svc-name').value='';
+  document.getElementById('new-svc-price').value='';
+  showAlert('settings-alert',name+' added at '+price.toFixed(3)+' KD','success');
+}
+
+function renderBranchesList(){
+  const el=document.getElementById('branches-list');if(!el)return;
+  el.innerHTML='';
+  appSettings.branches.forEach((b,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)';
+    const left=document.createElement('span');
+    left.style.cssText='font-size:13px;font-weight:600';left.textContent='🏪 '+b;
+    row.appendChild(left);
+    if(i>=2){
+      const btn=document.createElement('button');
+      btn.textContent='🗑 Delete';
+      btn.style.cssText='background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit';
+      btn.addEventListener('click',function(){deleteBranch(b);});
+      row.appendChild(btn);
+    }else{
+      const sp=document.createElement('span');
+      sp.style.cssText='font-size:11px;color:var(--muted)';sp.textContent='Default';
+      row.appendChild(sp);
+    }
+    el.appendChild(row);
+  });
+}
+
+function deleteBranch(name){
+  if(!confirm('Delete branch "'+name+'"?'))return;
+  appSettings.branches=appSettings.branches.filter(b=>b!==name);
+  saveSettings();renderBranchesList();
+  showAlert('settings-alert',name+' deleted','success');
+}
+
+function addBranch(){
+  const name=document.getElementById('new-branch-name').value.trim();
+  if(!name){showAlert('settings-alert','Enter branch name','error');return;}
+  if(appSettings.branches.includes(name)){showAlert('settings-alert','Branch already exists','error');return;}
+  appSettings.branches.push(name);
+  saveSettings();renderBranchesList();
+  document.getElementById('new-branch-name').value='';
+  showAlert('settings-alert',name+' added!','success');
+}
+
+function renderSettings(){
+  // Load current values
+  const commPct=Math.round(COMM*100);
+  const commDisp=document.getElementById('comm-rate-display');
+  if(commDisp)commDisp.textContent=commPct;
+  const commInp=document.getElementById('setting-comm');
+  if(commInp)commInp.value=commPct;
+  const fsd=document.getElementById('fs-free-display');if(fsd)fsd.textContent=FS_FREE;
+  const bsd=document.getElementById('bs-free-display');if(bsd)bsd.textContent=BS_FREE;
+  const fsInp=document.getElementById('setting-fs-free');if(fsInp)fsInp.value=FS_FREE;
+  const bsInp=document.getElementById('setting-bs-free');if(bsInp)bsInp.value=BS_FREE;
+  renderServicesList();
+  renderBranchesList();
+}
+
+// Load settings on startup
+loadSettings();
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
