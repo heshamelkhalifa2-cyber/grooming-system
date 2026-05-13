@@ -698,11 +698,9 @@ async function saveSession(){
   const delivCharge=parseFloat(document.getElementById('f-delivery')?.value)||0;
   const finalCharged=(totCharged-discAmt)+delivCharge;
   const totalPets=svcsData.reduce((s,sv)=>s+(sv.qty||0),0);
-  // Kuwait time at moment of saving
+  // Kuwait time at moment of saving - using timezone explicitly
   const kwNow=new Date();
-  const kwH=String(kwNow.getHours()).padStart(2,'0');
-  const kwM=String(kwNow.getMinutes()).padStart(2,'0');
-  const kwTime_save=kwH+':'+kwM;
+  const kwTime_save=kwNow.toLocaleTimeString('en-GB',{timeZone:'Asia/Kuwait',hour:'2-digit',minute:'2-digit'});
 
   const rec={date,branch,groomers,phone,client_name:cname,services:svcsData,qty:totalPets,
     total:totRev,free_units:totFree,charged:finalCharged,week,month,
