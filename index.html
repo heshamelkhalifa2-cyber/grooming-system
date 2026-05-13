@@ -698,14 +698,11 @@ async function saveSession(){
   const delivCharge=parseFloat(document.getElementById('f-delivery')?.value)||0;
   const finalCharged=(totCharged-discAmt)+delivCharge;
   const totalPets=svcsData.reduce((s,sv)=>s+(sv.qty||0),0);
-  // Save Kuwait time: UTC+3 manually
-  const kwNow=new Date();
-  const utcMs=kwNow.getTime();
-  const kwMs=utcMs+(3*60*60*1000);
-  const kwD=new Date(kwMs);
-  const kwHH=String(kwD.getUTCHours()).padStart(2,'0');
-  const kwMM=String(kwD.getUTCMinutes()).padStart(2,'0');
-  const kwTime_save=kwHH+':'+kwMM;
+  // Same exact logic as topbar clock
+  const _kwNow=new Date();
+  const _kwMs=_kwNow.getTime()+(3*60*60*1000);
+  const _kw=new Date(_kwMs);
+  const kwTime_save=String(_kw.getUTCHours()).padStart(2,'0')+':'+String(_kw.getUTCMinutes()).padStart(2,'0');
 
   const rec={date,branch,groomers,phone,client_name:cname,services:svcsData,qty:totalPets,
     total:totRev,free_units:totFree,charged:finalCharged,week,month,
