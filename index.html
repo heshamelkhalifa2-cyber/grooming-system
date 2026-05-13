@@ -199,6 +199,20 @@ body.rtl th,body.rtl td{text-align:right}
   </div>
   <div class="topbar-right">
     <div id="kw-clock" style="font-size:11px;opacity:0.85;text-align:right;line-height:1.5;background:rgba(255,255,255,0.1);padding:4px 10px;border-radius:8px;font-weight:600"></div>
+    <!-- Notification Bell -->
+    <div style="position:relative">
+      <button id="notif-btn" onclick="toggleNotifPanel()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;position:relative;display:flex;align-items:center;justify-content:center">
+        🔔
+        <span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#E74C3C;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:800;align-items:center;justify-content:center"></span>
+      </button>
+      <div id="notif-panel" style="display:none;position:absolute;right:0;top:40px;width:320px;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);border:1px solid var(--border);z-index:500;overflow:hidden">
+        <div style="background:var(--navy);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:800;font-size:14px">🔔 Notifications</span>
+          <button onclick="clearNotifications()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit">Clear All</button>
+        </div>
+        <div id="notif-list" style="max-height:350px;overflow-y:auto"></div>
+      </div>
+    </div>
     <span id="topbar-user" style="opacity:0.75;font-size:12px"></span>
     <button class="lang-btn" onclick="toggleLang()">🌐 AR/EN</button>
     <button class="logout-btn" onclick="doLogout()" id="logout-btn">Logout</button>
@@ -344,7 +358,10 @@ body.rtl th,body.rtl td{text-align:right}
         <option value="Visit">Visit</option>
         <option value="Delivery">Delivery</option>
       </select>
-      <button onclick="exportCSV()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:auto">⬇️ Export CSV</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button onclick="sendDailyReport()" style="background:#2471A3;color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📧 Daily Report</button>
+        <button onclick="exportCSV()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬇️ Export CSV</button>
+      </div>
     </div>
     <div class="kpi-grid" id="dash-kpis"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -637,6 +654,7 @@ async function doLogin(){
       if(data.role==='admin'){
         document.getElementById('view-admin').style.display='block';
         initDropdowns();await loadRecs();renderDashboard();
+        updateNotifBadge();
       }else{
         document.getElementById('view-cashier').style.display='block';initCashier();
       }
@@ -868,6 +886,9 @@ async function saveSession(){
   if(error){showAlert('cashier-alert','Error: '+error.message,'error');console.error(error);return;}
   showAlert('cashier-alert',t('savedOk')+(totFree>0?' 🎁 '+totFree+' free!':''),'success');
   if(totFree>0)playSound('free');else playSound('success');
+  // Add notification for admin
+  const notifMsg='New session saved by '+CU.username+' — '+cname+' ('+phone+') — '+finalCharged2.toFixed(3)+' KD'+(totFree>0?' 🎁 '+totFree+' free':'');
+  addNotification(notifMsg,'session');
   document.getElementById('f-phone').value='';
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
@@ -1200,9 +1221,16 @@ function openClientModal(ph){
   const totalFree=pr.reduce((s,r)=>s+(r.free_units||0),0);
   const totalDisc=pr.reduce((s,r)=>s+(r.discount_amt||0),0);
   window._recs=allRecs;
+  const loyalty=getLoyaltyLevel(pr.length);
   document.getElementById('rec-modal-title').textContent='👥 '+(cname||ph);
   document.getElementById('rec-modal-body').innerHTML=
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">'
+    '<div style="background:'+loyalty.bg+';border:2px solid '+loyalty.color+';border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:28px">'+loyalty.icon+'</span>'
+    +'<div><div style="font-size:15px;font-weight:800;color:'+loyalty.color+'">'+loyalty.title+'</div>'
+    +'<div style="font-size:12px;color:var(--muted)">'+loyalty.desc+'</div></div>'
+    +'<div style="margin-left:auto;text-align:right"><div style="font-size:11px;color:var(--muted)">Next level</div><div style="font-size:12px;font-weight:700;color:'+loyalty.color+'">'+loyalty.next+'</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">'
     +'<div style="background:var(--teal-light);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Visits</div><div style="font-size:22px;font-weight:800;color:var(--navy)">'+pr.length+'</div></div>'
     +'<div style="background:var(--teal-light);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Total Paid</div><div style="font-size:14px;font-weight:800;color:var(--teal-dark)">'+totalPaid.toFixed(3)+' KD</div></div>'
     +'<div style="background:var(--teal-light);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">Free Given</div><div style="font-size:18px;font-weight:800;color:#8B6914">'+(totalFree||0)+'</div></div>'
@@ -1906,6 +1934,131 @@ function applyOfferCode(){
     return;
   }
   applyOffer(found);
+}
+
+
+// ── LOYALTY SYSTEM ────────────────────────────────────────────────────────────
+function getLoyaltyLevel(visits){
+  if(visits>=50)return{title:'💎 Diamond',icon:'💎',desc:'Exceptional loyalty — 50+ visits',next:'You are at the top!',bg:'#EBF5FB',color:'#1A5276'};
+  if(visits>=25)return{title:'🥇 Gold',icon:'🥇',desc:'Amazing client — 25+ visits',next:String(50-visits)+' visits to Diamond',bg:'#FEF9E7',color:'#9A7D0A'};
+  if(visits>=10)return{title:'🥈 Silver',icon:'🥈',desc:'Loyal client — 10+ visits',next:String(25-visits)+' visits to Gold',bg:'#F2F3F4',color:'#566573'};
+  if(visits>=5)return{title:'🥉 Bronze',icon:'🥉',desc:'Regular client — 5+ visits',next:String(10-visits)+' visits to Silver',bg:'#FDFEFE',color:'#784212'};
+  return{title:'🌱 New Client',icon:'🌱',desc:'Welcome! '+visits+' visit'+(visits===1?'':'s')+' so far',next:String(5-visits)+' visits to Bronze',bg:'#EAFAF1',color:'#1E8449'};
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function getNotifications(){
+  try{return JSON.parse(localStorage.getItem('pp_notifs')||'[]');}catch(e){return[];}
+}
+function saveNotifications(n){localStorage.setItem('pp_notifs',JSON.stringify(n.slice(0,50)));}
+
+function addNotification(msg,type,data){
+  if(!CU||CU.role!=='admin')return;
+  const n=getNotifications();
+  n.unshift({id:Date.now(),msg,type:type||'info',data,time:window._kwTime||'',date:window._kwDate||new Date().toISOString().split('T')[0],read:false});
+  saveNotifications(n);
+  updateNotifBadge();
+}
+
+function updateNotifBadge(){
+  const n=getNotifications();
+  const unread=n.filter(x=>!x.read).length;
+  const badge=document.getElementById('notif-badge');
+  if(badge){
+    badge.textContent=unread>9?'9+':unread;
+    badge.style.display=unread>0?'flex':'none';
+  }
+}
+
+function toggleNotifPanel(){
+  const panel=document.getElementById('notif-panel');
+  if(!panel)return;
+  const isOpen=panel.style.display==='block';
+  panel.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    renderNotifList();
+    // Mark all as read
+    const n=getNotifications().map(x=>({...x,read:true}));
+    saveNotifications(n);
+    updateNotifBadge();
+  }
+}
+
+function renderNotifList(){
+  const el=document.getElementById('notif-list');if(!el)return;
+  const n=getNotifications();
+  if(!n.length){el.innerHTML='<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">No notifications</div>';return;}
+  const typeIcon={info:'ℹ️',success:'✅',session:'✂️',free:'🎁',warning:'⚠️'};
+  el.innerHTML=n.map(x=>'<div style="padding:12px 16px;border-bottom:1px solid var(--border);background:'+(x.read?'#fff':'#F0F7F2')+'">'
+    +'<div style="display:flex;gap:8px;align-items:flex-start">'
+    +'<span style="font-size:18px;flex-shrink:0">'+(typeIcon[x.type]||'🔔')+'</span>'
+    +'<div><div style="font-size:13px;font-weight:'+(x.read?500:700)+';color:var(--text)">'+x.msg+'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+x.date+(x.time?' at '+x.time:'')+'</div>'
+    +'</div></div></div>').join('');
+}
+
+function clearNotifications(){
+  saveNotifications([]);
+  updateNotifBadge();
+  renderNotifList();
+}
+
+// Close notif panel when clicking outside
+document.addEventListener('click',function(e){
+  const panel=document.getElementById('notif-panel');
+  const btn=document.getElementById('notif-btn');
+  if(panel&&panel.style.display==='block'&&!panel.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){
+    panel.style.display='none';
+  }
+});
+
+// ── DAILY REPORT EMAIL ────────────────────────────────────────────────────────
+function sendDailyReport(){
+  const today=new Date().toISOString().split('T')[0];
+  const todayRecs=allRecs.filter(r=>r.date===today);
+  const totalRev=todayRecs.reduce((s,r)=>s+(r.total||0),0);
+  const totalCharged=todayRecs.reduce((s,r)=>s+(r.charged||0),0);
+  const totalPets=todayRecs.reduce((s,r)=>s+getPets(r),0);
+  const totalFree=todayRecs.reduce((s,r)=>s+(r.free_units||0),0);
+  const totalComm=totalCharged*COMM;
+
+  // Branch breakdown
+  const branchBreak=appSettings.branches.map(b=>{
+    const br=todayRecs.filter(r=>r.branch===b);
+    return b+': '+br.length+' sessions, '+br.reduce((s,r)=>s+(r.charged||0),0).toFixed(3)+' KD';
+  }).join('%0A');
+
+  // Groomer breakdown
+  const grmBreak=GROOMERS.map(g=>{
+    const gr=todayRecs.filter(r=>grmArr(r).includes(g));
+    if(!gr.length)return null;
+    const rev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
+    return g+': '+getPets({services:gr.flatMap(r=>r.services||[])})+' pets, Comm: '+( rev*COMM).toFixed(3)+' KD';
+  }).filter(Boolean).join('%0A');
+
+  const subject='Pet Point Daily Report — '+today;
+  const body='PET POINT GROOMING — DAILY REPORT%0A'
+    +'Date: '+today+'%0A'
+    +'Generated: '+(window._kwTime||'')+' (Kuwait Time)%0A'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━%0A%0A'
+    +'SUMMARY%0A'
+    +'Total Sessions: '+todayRecs.length+'%0A'
+    +'Total Pets: '+totalPets+'%0A'
+    +'Total Revenue: '+totalRev.toFixed(3)+' KD%0A'
+    +'Total Charged: '+totalCharged.toFixed(3)+' KD%0A'
+    +'Total Commission: '+totalComm.toFixed(3)+' KD%0A'
+    +'Free Units Given: '+totalFree+'%0A%0A'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━%0A%0A'
+    +'BY BRANCH%0A'
+    +branchBreak+'%0A%0A'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━%0A%0A'
+    +'BY GROOMER%0A'
+    +grmBreak+'%0A%0A'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━%0A'
+    +'Pet Point Grooming Management System%0A'
+    +'Designed by Hesham El-Khalifa';
+
+  window.location.href='mailto:?subject='+subject+'&body='+body;
 }
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
