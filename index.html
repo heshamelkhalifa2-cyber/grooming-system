@@ -191,6 +191,7 @@ body.rtl th,body.rtl td{text-align:right}
     <span>Pet Point Grooming</span>
   </div>
   <div class="topbar-right">
+    <div id="kw-clock" style="font-size:11px;opacity:0.85;text-align:right;line-height:1.5;background:rgba(255,255,255,0.1);padding:4px 10px;border-radius:8px;font-weight:600"></div>
     <span id="topbar-user" style="opacity:0.75;font-size:12px"></span>
     <button class="lang-btn" onclick="toggleLang()">🌐 AR/EN</button>
     <button class="logout-btn" onclick="doLogout()" id="logout-btn">Logout</button>
@@ -199,6 +200,13 @@ body.rtl th,body.rtl td{text-align:right}
 
 <!-- CASHIER -->
 <div id="view-cashier" style="display:none">
+<div style="background:var(--card);border-bottom:1px solid var(--border);padding:0 20px">
+  <div style="display:flex;gap:0;max-width:960px;margin:0 auto">
+    <button id="ctab-new" onclick="switchCashierTab('new')" style="padding:12px 20px;border:none;border-bottom:3px solid var(--teal);background:transparent;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit">✂️ New Session</button>
+    <button id="ctab-records" onclick="switchCashierTab('records')" style="padding:12px 20px;border:none;border-bottom:3px solid transparent;background:transparent;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit">📋 My Records</button>
+  </div>
+</div>
+<div id="cashier-new-tab">
 <div class="container">
   <div class="card">
     <div class="card-title">✂️ <span id="t-new-session">New Grooming Session</span></div>
@@ -258,6 +266,34 @@ body.rtl th,body.rtl td{text-align:right}
     <button class="btn btn-primary" onclick="saveSession()">💾 Save Session</button>
   </div>
   <div class="copyright">© 2026 <b>Pet Point</b> — Grooming Management System<br>Designed &amp; Developed by <b>Hesham El-Khalifa</b> | All rights reserved</div>
+</div>
+</div><!-- end cashier-new-tab -->
+
+<!-- CASHIER RECORDS TAB -->
+<div id="cashier-records-tab" style="display:none">
+<div class="container">
+  <div style="margin-bottom:14px">
+    <h2 style="font-size:16px;font-weight:800;color:var(--navy);margin-bottom:12px">📋 My Records</h2>
+    <!-- Search type selector -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <button onclick="setCashierSearch(this,'phone')" class="csearch-btn active" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--teal);background:var(--teal);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📱 Phone</button>
+      <button onclick="setCashierSearch(this,'name')" class="csearch-btn" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">👤 Name</button>
+      <button onclick="setCashierSearch(this,'date')" class="csearch-btn" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📅 Date</button>
+      <button onclick="setCashierSearch(this,'all')" class="csearch-btn" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📋 All</button>
+    </div>
+    <!-- Search input -->
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="cashier-search-input" placeholder="Search by phone number..." oninput="renderCashierRecords()" style="flex:1;margin-bottom:0">
+      <select id="cashier-rec-month" onchange="renderCashierRecords()" style="max-width:150px;margin-bottom:0">
+        <option value="all">All Months</option>
+      </select>
+    </div>
+  </div>
+  <div id="cashier-records-list"></div>
+  <div class="copyright">© 2026 <b>Pet Point</b> — Grooming Management System<br>Designed &amp; Developed by <b>Hesham El-Khalifa</b> | All rights reserved</div>
+</div>
+</div>
+
 </div>
 </div>
 
@@ -508,6 +544,13 @@ function addSvcLine(){
     +'<div><label style="margin-bottom:3px">Service</label><select id="ss-'+id+'" onchange="calcTotal()" style="margin-bottom:6px"><option value="">-- Select --</option>'+opts+'</select></div>'
     +'<div><label style="margin-bottom:3px">Qty (Pets)</label><input type="number" id="sq-'+id+'" min="1" value="1" oninput="calcTotal()" style="margin-bottom:6px"></div>'
     +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+    +'<div><label style="margin-bottom:3px">Pet Name <span style="font-weight:400;text-transform:none;font-size:11px">(optional)</span></label>'
+    +'<input id="sn-'+id+'" placeholder="e.g. Luna, Max..." style="margin-bottom:0"></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;padding-top:18px">'
+    +'<input type="checkbox" id="sv-'+id+'" style="width:18px;height:18px;margin-bottom:0;cursor:pointer;accent-color:var(--teal)">'
+    +'<label for="sv-'+id+'" style="margin-bottom:0;text-transform:none;font-size:13px;font-weight:700;cursor:pointer">💉 Vaccinated</label>'
+    +'</div></div>'
     +'<div style="font-size:12px;color:var(--muted)">Price: <b id="sp-'+id+'">-</b> &nbsp; Total: <b id="st-'+id+'">-</b> &nbsp; <span style="color:#8B6914">Free: <b id="sf-'+id+'">0</b></span> &nbsp; <span style="color:var(--teal-dark)">Charged: <b id="sc-'+id+'">-</b></span></div>';
   document.getElementById('svc-lines').appendChild(div);
   calcTotal();
@@ -522,7 +565,9 @@ function getLines(){
   for(let i=1;i<=svcCount;i++){
     const s=document.getElementById('ss-'+i);
     const q=document.getElementById('sq-'+i);
-    if(s&&q&&s.value)lines.push({id:i,svc:s.value,qty:parseInt(q.value)||0});
+    const n=document.getElementById('sn-'+i);
+    const v=document.getElementById('sv-'+i);
+    if(s&&q&&s.value)lines.push({id:i,svc:s.value,qty:parseInt(q.value)||0,petName:n?n.value.trim():'',vaccinated:v?v.checked:false});
   }
   return lines;
 }
@@ -646,7 +691,7 @@ async function saveSession(){
     const free=thr>0?Math.floor((prevQty+l.qty)/thr)-Math.floor(prevQty/thr):0;
     const charged=Math.max(0,l.qty-free)*price;
     totRev+=total;totFree+=free;totCharged+=charged;
-    svcsData.push({service:l.svc,qty:l.qty,price,total,free_units:free,charged});
+    svcsData.push({service:l.svc,qty:l.qty,price,total,free_units:free,charged,pet_name:l.petName||'',vaccinated:l.vaccinated||false});
   }
   const discPct=Math.min(100,parseFloat(document.getElementById('f-discount').value)||0)/100;
   const discAmt=totCharged*discPct;
@@ -1064,6 +1109,165 @@ function switchTab(tab){
     }
   } catch(e) { localStorage.removeItem('pp_user'); }
 })();
+
+// ── KUWAIT CLOCK ──────────────────────────────────────────────────────────────
+function updateClock(){
+  const now=new Date();
+  const kw=new Date(now.toLocaleString('en-US',{timeZone:'Asia/Kuwait'}));
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const h=String(kw.getHours()).padStart(2,'0');
+  const m=String(kw.getMinutes()).padStart(2,'0');
+  const s=String(kw.getSeconds()).padStart(2,'0');
+  const date=days[kw.getDay()]+', '+kw.getDate()+' '+months[kw.getMonth()]+' '+kw.getFullYear();
+  const el=document.getElementById('kw-clock');
+  if(el)el.innerHTML=h+':'+m+':'+s+'<br><span style="font-size:10px;font-weight:400">'+date+' — Kuwait</span>';
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// ── CASHIER SEARCH ────────────────────────────────────────────────────────────
+let cashierSearchType='phone';
+
+function setCashierSearch(btn,type){
+  cashierSearchType=type;
+  document.querySelectorAll('.csearch-btn').forEach(b=>{
+    b.style.background='#fff';b.style.color='var(--muted)';b.style.borderColor='var(--border)';
+  });
+  btn.style.background='var(--teal)';btn.style.color='#fff';btn.style.borderColor='var(--teal)';
+  const inp=document.getElementById('cashier-search-input');
+  if(inp){
+    if(type==='phone')inp.placeholder='Search by phone number...';
+    else if(type==='name')inp.placeholder='Search by client name...';
+    else if(type==='date')inp.placeholder='Search by date e.g. 2026-05-12';
+    else inp.placeholder='Showing all records...';
+    inp.value='';
+  }
+  renderCashierRecords();
+}
+
+// ── CASHIER TABS ───────────────────────────────────────────────────────────────
+async function switchCashierTab(tab){
+  const isNew=tab==='new';
+  document.getElementById('cashier-new-tab').style.display=isNew?'block':'none';
+  document.getElementById('cashier-records-tab').style.display=isNew?'none':'block';
+  const newBtn=document.getElementById('ctab-new');
+  const recBtn=document.getElementById('ctab-records');
+  if(newBtn){newBtn.style.borderBottomColor=isNew?'var(--teal)':'transparent';newBtn.style.color=isNew?'var(--navy)':'var(--muted)';}
+  if(recBtn){recBtn.style.borderBottomColor=isNew?'transparent':'var(--teal)';recBtn.style.color=isNew?'var(--muted)':'var(--navy)';}
+  if(!isNew){
+    // Populate month filter
+    const sel=document.getElementById('cashier-rec-month');
+    if(sel&&sel.options.length<=1){
+      MONTHS.forEach(m=>{const o=document.createElement('option');o.value=m;o.text=m;sel.appendChild(o);});
+    }
+    await loadCashierRecords();
+    renderCashierRecords();
+  }
+}
+
+let cashierRecs=[];
+
+async function loadCashierRecords(){
+  if(!CU)return;
+  const {data}=await sb.from('records').select('date,services,service,qty,charged,total,groomers,visit_type,client_name,phone,created_at').eq('recorded_by',CU.username).order('created_at',{ascending:false});
+  cashierRecs=data||[];
+}
+
+function renderCashierRecords(){
+  const month=document.getElementById('cashier-rec-month')?document.getElementById('cashier-rec-month').value:'all';
+  const q=(document.getElementById('cashier-search-input')?document.getElementById('cashier-search-input').value.trim():'').toLowerCase();
+  let recs=cashierRecs;
+  // Month filter
+  if(month!=='all')recs=recs.filter(r=>r.date&&new Date(r.date).toLocaleString('en',{month:'long'}).toLowerCase()===month.toLowerCase());
+  // Search filter
+  if(q){
+    if(cashierSearchType==='phone')recs=recs.filter(r=>r.phone&&r.phone.includes(q));
+    else if(cashierSearchType==='name')recs=recs.filter(r=>r.client_name&&r.client_name.toLowerCase().includes(q));
+    else if(cashierSearchType==='date')recs=recs.filter(r=>r.date&&r.date.includes(q));
+    // 'all' searches everything
+    else recs=recs.filter(r=>(r.phone&&r.phone.includes(q))||(r.client_name&&r.client_name.toLowerCase().includes(q))||(r.date&&r.date.includes(q)));
+  }
+  const el=document.getElementById('cashier-records-list');
+  if(!recs.length){el.innerHTML='<div class="empty"><div class="icon">📋</div>No records found</div>';return;}
+  
+  // Print button
+  const printBtn='<div style="text-align:left;margin-bottom:12px">'
+    +'<button onclick="printCashierRecords()" style="background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🖨️ Print Records ('+recs.length+')</button>'
+    +'</div>';
+  
+  const cards=recs.map(r=>{
+    const svcs=r.services&&r.services.length?r.services.map(s=>{
+      let txt=s.service+' × '+s.qty;
+      if(s.pet_name)txt+=' (<b>'+s.pet_name+'</b>)';
+      txt+=' &nbsp;<span style="font-size:11px">'+(s.vaccinated?'💉 Vaccinated':'⚠️ Not Vaccinated')+'</span>';
+      return txt;
+    }).join('<br>'):(r.service||'');
+    const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
+    const kwTime=r.created_at?new Date(new Date(r.created_at).toLocaleString('en-US',{timeZone:'Asia/Kuwait'})).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):'';
+    return'<div class="card" style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+      +'<div><div style="font-weight:800;font-size:14px">'+r.date+(kwTime?' &nbsp;<span style="font-size:11px;color:var(--muted);font-weight:400">⏰ '+kwTime+' (KWT)</span>':'')+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(r.branch||'')+'&nbsp;·&nbsp;'+(r.visit_type||'Visit')+'</div></div>'
+      +'<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:var(--teal-dark)">'+(r.charged||0).toFixed(3)+' KD</div></div>'
+      +'</div>'
+      +(r.client_name||r.phone?'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">👤 '+(r.client_name||'')+' '+(r.phone?' &nbsp;📱 '+r.phone:'')+'</div>':'')
+      +'<div style="font-size:12px;color:var(--navy);margin-bottom:6px;font-weight:600">✂️ '+groomers+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);line-height:2">'+svcs+'</div>'
+      +'</div>';
+  }).join('');
+  el.innerHTML=printBtn+cards;
+}
+
+function printCashierRecords(){
+  const month=document.getElementById('cashier-rec-month')?document.getElementById('cashier-rec-month').value:'all';
+  const q=(document.getElementById('cashier-search-input')?document.getElementById('cashier-search-input').value.trim():'').toLowerCase();
+  let recs=cashierRecs;
+  if(month!=='all')recs=recs.filter(r=>r.date&&new Date(r.date).toLocaleString('en',{month:'long'}).toLowerCase()===month.toLowerCase());
+  if(q){
+    if(cashierSearchType==='phone')recs=recs.filter(r=>r.phone&&r.phone.includes(q));
+    else if(cashierSearchType==='name')recs=recs.filter(r=>r.client_name&&r.client_name.toLowerCase().includes(q));
+    else if(cashierSearchType==='date')recs=recs.filter(r=>r.date&&r.date.includes(q));
+    else recs=recs.filter(r=>(r.phone&&r.phone.includes(q))||(r.client_name&&r.client_name.toLowerCase().includes(q))||(r.date&&r.date.includes(q)));
+  }
+  const now=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kuwait'}));
+  const printDate=now.toLocaleDateString('en-GB')+' '+now.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'})+' (KWT)';
+  const rows=recs.map(r=>{
+    const svcs=r.services&&r.services.length?r.services.map(s=>s.service+' x'+s.qty+(s.pet_name?' ('+s.pet_name+')':'')+(s.vaccinated?' 💉':' ⚠️')).join(', '):(r.service||'');
+    const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
+    const kwTime=r.created_at?new Date(new Date(r.created_at).toLocaleString('en-US',{timeZone:'Asia/Kuwait'})).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'}):'';
+    return'<tr>'
+      +'<td>'+r.date+'</td>'
+      +'<td>'+kwTime+'</td>'
+      +'<td>'+(r.client_name||'-')+'<br><small>'+( r.phone||'')+'</small></td>'
+      +'<td>'+groomers+'</td>'
+      +'<td>'+svcs+'</td>'
+      +'<td>'+(r.branch||'')+'</td>'
+      +'<td style="font-weight:bold">'+(r.charged||0).toFixed(3)+' KD</td>'
+      +'</tr>';
+  }).join('');
+  const total=recs.reduce((s,r)=>s+(r.charged||0),0);
+  const w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pet Point Records</title><style>'
+    +'body{font-family:Arial,sans-serif;font-size:12px;direction:ltr}'
+    +'h2{color:#1B3A2D;margin-bottom:4px}p{color:#666;margin-bottom:16px;font-size:11px}'
+    +'table{width:100%;border-collapse:collapse}'
+    +'th{background:#1B3A2D;color:#fff;padding:8px;text-align:left;font-size:11px}'
+    +'td{padding:7px 8px;border-bottom:1px solid #ddd;vertical-align:top}'
+    +'tr:nth-child(even){background:#f9f9f9}'
+    +'.total-row{background:#E8F5EE;font-weight:bold}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'
+    +'<div><h2>🐾 Pet Point Grooming</h2><p>Records for: '+CU.name+' ('+CU.username+') &nbsp;|&nbsp; Printed: '+printDate+'</p></div>'
+    +'<button onclick="window.print()" style="background:#1B3A2D;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px">🖨️ Print</button>'
+    +'</div>'
+    +'<table><thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Groomer(s)</th><th>Services</th><th>Branch</th><th>Charged</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr class="total-row"><td colspan="6" style="text-align:right;padding:8px">Total ('+recs.length+' sessions)</td><td style="padding:8px">'+total.toFixed(3)+' KD</td></tr></tfoot>'
+    +'</table></body></html>');
+  w.document.close();
+}
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
