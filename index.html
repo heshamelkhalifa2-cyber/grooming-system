@@ -404,6 +404,76 @@ body.rtl th,body.rtl td{text-align:right}
     <div class="card"><div class="card-title">👥 Current Users</div><div id="users-list"></div></div>
   </div>
 
+  <!-- SETTINGS TAB -->
+  <div id="sec-settings" class="tab-section">
+    <div id="settings-alert" class="alert"></div>
+
+    <div class="card">
+      <div class="card-title">🔊 Sound Settings</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700">Session Sounds</div>
+          <div style="font-size:12px;color:var(--muted)">Play sounds on save, error, and free unit</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;text-transform:none">
+          <input type="checkbox" id="setting-sounds" style="width:18px;height:18px;margin-bottom:0;accent-color:var(--teal)">
+          <span style="font-size:13px;font-weight:700">Enable Sounds</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💸 Commission Rate</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end">
+        <div>
+          <label>Commission % (currently <span id="comm-rate-display">10</span>%)</label>
+          <input type="number" id="setting-comm" min="1" max="50" placeholder="e.g. 10" style="margin-bottom:0">
+        </div>
+        <button onclick="saveCommRate()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;height:42px">💾 Save</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎁 Free Unit Rules</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label>Full Service — every <span id="fs-free-display">3</span> paid → 1 free</label>
+          <input type="number" id="setting-fs-free" min="1" max="20" placeholder="e.g. 3" style="margin-bottom:8px">
+        </div>
+        <div>
+          <label>Basic Shower — every <span id="bs-free-display">5</span> paid → 1 free</label>
+          <input type="number" id="setting-bs-free" min="1" max="20" placeholder="e.g. 5" style="margin-bottom:8px">
+        </div>
+      </div>
+      <button onclick="saveFreeRules()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">💾 Save Free Rules</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✂️ Services & Prices</div>
+      <div id="services-list" style="margin-bottom:14px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">➕ Add New Service</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:end">
+          <div><label>Service Name</label><input id="new-svc-name" placeholder="e.g. Nail Trimming" style="margin-bottom:0"></div>
+          <div><label>Price (KD)</label><input type="number" id="new-svc-price" min="0" step="0.5" placeholder="e.g. 5.0" style="margin-bottom:0"></div>
+          <button onclick="addService()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;height:42px">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏪 Branches</div>
+      <div id="branches-list" style="margin-bottom:14px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">➕ Add New Branch</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+          <div><label>Branch Name</label><input id="new-branch-name" placeholder="e.g. Salmiya" style="margin-bottom:0"></div>
+          <button onclick="addBranch()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;height:42px">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="copyright">© 2026 <b>Pet Point</b> — Grooming Management System<br>Designed &amp; Developed by <b>Hesham El-Khalifa</b> | All rights reserved</div>
 </div>
 </div>
