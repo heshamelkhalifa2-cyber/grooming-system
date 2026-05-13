@@ -1206,11 +1206,12 @@ function renderCashierRecords(){
     const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
     const kwTime=(function(){
       if(!r.created_at)return'';
-      const d=new Date(r.created_at);
-      let h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0');
-      const ampm=h>=12?'PM':'AM';
-      h=h%12||12;
-      return h+':'+m+' '+ampm;
+      try{
+        return new Intl.DateTimeFormat('en-US',{
+          timeZone:'Asia/Kuwait',
+          hour:'numeric',minute:'2-digit',hour12:true
+        }).format(new Date(r.created_at));
+      }catch(e){return'';}
     })();
     return'<div class="card" style="margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
@@ -1244,11 +1245,12 @@ function printCashierRecords(){
     const groomers=r.groomers&&Array.isArray(r.groomers)?r.groomers.join(', '):(r.groomers||'');
     const kwTime=(function(){
       if(!r.created_at)return'';
-      const d=new Date(r.created_at);
-      let h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0');
-      const ampm=h>=12?'PM':'AM';
-      h=h%12||12;
-      return h+':'+m+' '+ampm;
+      try{
+        return new Intl.DateTimeFormat('en-US',{
+          timeZone:'Asia/Kuwait',
+          hour:'numeric',minute:'2-digit',hour12:true
+        }).format(new Date(r.created_at));
+      }catch(e){return'';}
     })();
     return'<tr>'
       +'<td>'+r.date+'</td>'
