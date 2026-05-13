@@ -1178,7 +1178,7 @@ let cashierRecs=[];
 
 async function loadCashierRecords(){
   if(!CU)return;
-  const {data}=await sb.from('records').select('date,services,service,qty,charged,total,groomers,visit_type,client_name,phone,created_at').eq('recorded_by',CU.username).order('created_at',{ascending:false});
+  const {data}=await sb.from('records').select('date,services,service,qty,charged,total,groomers,visit_type,client_name,phone,created_at,recorded_time,branch').eq('recorded_by',CU.username).order('created_at',{ascending:false});
   cashierRecs=data||[];
 }
 
