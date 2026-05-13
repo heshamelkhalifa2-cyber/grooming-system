@@ -2058,7 +2058,9 @@ function sendDailyReport(){
     +'Pet Point Grooming Management System%0A'
     +'Designed by Hesham El-Khalifa';
 
-  window.location.href='mailto:?subject='+subject+'&body='+body;
+  // Open Gmail compose directly in browser
+  const gmailUrl='https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(subject.replace(/%0A/g,'\n'))+'&body='+body;
+  window.open(gmailUrl,'_blank');
 }
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
