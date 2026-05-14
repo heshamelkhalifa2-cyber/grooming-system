@@ -872,6 +872,14 @@ async function saveSession(){
   // Use time from live clock (guaranteed correct)
   const kwTime_save=window._kwTime||'';
 
+  // Apply offer discount if any
+  let offerDiscAmt2=0;
+  let finalCharged2=finalCharged;
+  if(appliedOffer){
+    if(appliedOffer.type==='percent')offerDiscAmt2=(totCharged-discAmt)*(parseFloat(appliedOffer.value)/100);
+    else if(appliedOffer.type==='fixed')offerDiscAmt2=Math.min(parseFloat(appliedOffer.value)||0,(totCharged-discAmt));
+    finalCharged2=Math.max(0,finalCharged-offerDiscAmt2)+delivCharge;
+  }
   const rec={date,branch,groomers,phone,client_name:cname,services:svcsData,qty:totalPets,
     total:totRev,free_units:totFree,charged:finalCharged2,week,month,
     visit_type:document.getElementById('f-visit').value,
