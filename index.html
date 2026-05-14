@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Pet Point — Grooming System</title>
+<meta name="description" content="Pet Point Grooming Management System">
+<meta name="theme-color" content="#1B3A2D">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PetPoint">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--navy:#1B3A2D;--teal:#2D7A4F;--teal-dark:#1B5C38;--teal-light:#E8F5EE;--red:#C0392B;--red-dark:#922B21;--amber:#F39C12;--blue:#2471A3;--bg:#F0F7F2;--card:#fff;--border:#C8E6D0;--text:#1A2E22;--muted:#5D7A69;--radius:12px}
@@ -215,6 +223,7 @@ body.rtl th,body.rtl td{text-align:right}
     </div>
     <span id="topbar-user" style="opacity:0.75;font-size:12px"></span>
     <button class="lang-btn" onclick="toggleLang()">🌐 AR/EN</button>
+    <button id="install-btn" onclick="installPWA()" style="display:none;background:linear-gradient(135deg,var(--teal),var(--teal-dark));border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;align-items:center;gap:5px;font-family:inherit">📲 Install App</button>
     <button class="logout-btn" onclick="doLogout()" id="logout-btn">Logout</button>
   </div>
 </div>
@@ -2367,6 +2376,38 @@ function sendDailyReport(){
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ── PWA SERVICE WORKER ────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(()=>console.log('SW registered'))
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+
+// PWA Install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  // Show install button in topbar
+  const installBtn=document.getElementById('install-btn');
+  if(installBtn)installBtn.style.display='flex';
+});
+
+window.addEventListener('appinstalled',()=>{
+  const installBtn=document.getElementById('install-btn');
+  if(installBtn)installBtn.style.display='none';
+  deferredPrompt=null;
+});
+
+function installPWA(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(()=>{deferredPrompt=null;});
+  }
+}
 </script>
 </body>
 </html>
