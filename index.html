@@ -348,7 +348,6 @@ body.rtl th,body.rtl td{text-align:right}
     <div class="filter-row" style="flex-wrap:wrap;gap:8px">
       <select id="dash-year" onchange="onDashYearChange()" style="min-width:100px;margin-bottom:0"></select>
       <select id="dash-month" onchange="onDashMonthChange()" style="min-width:130px;margin-bottom:0"><option value="all">All Months</option></select>
-      <select id="dash-day" onchange="renderDashboard()" style="min-width:130px;margin-bottom:0"><option value="all">All Days</option></select>
       <input type="date" id="dash-date" onchange="onDashDatePick()" title="Quick Date Filter" style="min-width:150px;margin-bottom:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;background:#fff;color:var(--text);cursor:pointer">
       <button onclick="clearDashDate()" style="background:#FADBD8;color:#922B21;border:none;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Clear date filter">✕ Clear Date</button>
       <select id="dash-branch" onchange="renderDashboard()" style="min-width:150px;margin-bottom:0">
@@ -392,6 +391,8 @@ body.rtl th,body.rtl td{text-align:right}
       <select id="rec-groomer" onchange="renderRecords()" style="margin-bottom:0">
         <option value="all">All Groomers</option>
       </select>
+      <input type="date" id="rec-date" onchange="onRecDatePick()" title="Filter by date" style="min-width:150px;margin-bottom:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;background:#fff;color:var(--text);cursor:pointer">
+      <button onclick="clearRecDate()" style="background:#FADBD8;color:#922B21;border:none;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Clear date">✕</button>
     </div>
     <div class="card" style="padding:0"><div class="table-wrap" id="records-table"></div></div>
   </div>
@@ -411,6 +412,8 @@ body.rtl th,body.rtl td{text-align:right}
       <select id="comm-groomer" onchange="renderCommissions()" style="margin-bottom:0">
         <option value="all">All Groomers</option>
       </select>
+      <input type="date" id="comm-date" onchange="onCommDatePick()" title="Quick Date Filter" style="min-width:150px;margin-bottom:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;background:#fff;color:var(--text);cursor:pointer">
+      <button onclick="clearCommDate()" style="background:#FADBD8;color:#922B21;border:none;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Clear date">✕</button>
       <div style="display:flex;gap:8px;margin-left:auto">
         <button onclick="exportCommissionsCSV()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬇️ Export CSV</button>
         <button onclick="sendCommissionReport()" style="background:rgba(45,122,79,0.15);border:1px solid rgba(45,122,79,0.3);color:var(--teal-dark);border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📧 Email Report</button>
@@ -952,6 +955,42 @@ function populateDayDropdown(){
 function onDashYearChange(){populateDayDropdown();renderDashboard();}
 function onDashMonthChange(){populateDayDropdown();renderDashboard();}
 
+// Records date picker
+function onRecDatePick(){
+  const v=document.getElementById('rec-date').value;
+  if(!v)return;
+  const d=new Date(v);
+  const m=MONTHS[d.getMonth()];
+  const y=String(d.getFullYear());
+  const recYear=document.getElementById('rec-year');
+  const recMonth=document.getElementById('rec-month');
+  if(recYear)recYear.value=y;
+  if(recMonth)recMonth.value=m;
+  renderRecords();
+}
+function clearRecDate(){
+  const el=document.getElementById('rec-date');if(el)el.value='';
+  renderRecords();
+}
+
+// Commissions date picker
+function onCommDatePick(){
+  const v=document.getElementById('comm-date').value;
+  if(!v)return;
+  const d=new Date(v);
+  const m=MONTHS[d.getMonth()];
+  const y=String(d.getFullYear());
+  const commYear=document.getElementById('comm-year');
+  const commMonth=document.getElementById('comm-month');
+  if(commYear)commYear.value=y;
+  if(commMonth)commMonth.value=m;
+  renderCommissions();
+}
+function clearCommDate(){
+  const el=document.getElementById('comm-date');if(el)el.value='';
+  renderCommissions();
+}
+
 function onDashDatePick(){
   const dateVal=document.getElementById('dash-date').value;
   if(!dateVal)return;
@@ -1098,7 +1137,9 @@ function renderRecords(){
   const year=document.getElementById('rec-year')?document.getElementById('rec-year').value:'all';
   const week=document.getElementById('rec-week')?document.getElementById('rec-week').value:'all';
   const groomer=document.getElementById('rec-groomer')?document.getElementById('rec-groomer').value:'all';
+  const dateFilter=document.getElementById('rec-date')?document.getElementById('rec-date').value:'';
   let recs=filterRecs(month,branch,year);
+  if(dateFilter)recs=recs.filter(r=>r.date===dateFilter);
   if(week!=='all')recs=recs.filter(r=>r.week===week);
   if(groomer!=='all')recs=recs.filter(r=>grmArr(r).includes(groomer));
   const el=document.getElementById('records-table');
@@ -1769,6 +1810,10 @@ function loadSettings(){
       FS_FREE=appSettings.fsFree;
       BS_FREE=appSettings.bsFree;
       if(appSettings.services)Object.assign(SVCS,appSettings.services);
+      if(appSettings.groomers&&appSettings.groomers.length){
+        GROOMERS.length=0;
+        appSettings.groomers.forEach(g=>GROOMERS.push(g));
+      }
     }
   }catch(e){}
 }
@@ -1954,12 +1999,85 @@ function renderSettings(){
   const bsInp=document.getElementById('setting-bs-free');if(bsInp)bsInp.value=BS_FREE;
   renderServicesList();
   renderBranchesList();
+  renderGroomersList();
   renderOffersList();
 }
 
 // Load settings on startup
 loadSettings();
 
+
+// ── GROOMERS MANAGEMENT ───────────────────────────────────────────────────────
+function renderGroomersList(){
+  const el=document.getElementById('groomers-list');if(!el)return;
+  el.innerHTML='';
+  GROOMERS.forEach((g,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)';
+    const left=document.createElement('div');
+    left.style.cssText='display:flex;align-items:center;gap:10px';
+    const avatar=document.createElement('div');
+    avatar.style.cssText='width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0';
+    avatar.textContent=g.substring(0,2).toUpperCase();
+    const name=document.createElement('span');
+    name.style.cssText='font-size:13px;font-weight:600';
+    name.textContent=g;
+    left.appendChild(avatar);left.appendChild(name);
+    row.appendChild(left);
+    if(i>=0){
+      const btn=document.createElement('button');
+      btn.textContent='🗑 Remove';
+      btn.style.cssText='background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit';
+      btn.addEventListener('click',()=>removeGroomer(g));
+      row.appendChild(btn);
+    }
+    el.appendChild(row);
+  });
+}
+
+function addGroomer(){
+  const name=document.getElementById('new-groomer-name').value.trim();
+  if(!name){showAlert('settings-alert','Enter groomer name','error');return;}
+  if(GROOMERS.includes(name)){showAlert('settings-alert','Groomer already exists','error');return;}
+  GROOMERS.push(name);
+  // Save to localStorage
+  appSettings.groomers=[...GROOMERS];
+  saveSettings();
+  // Update all groomer dropdowns in cashier form
+  updateGroomerDropdowns();
+  document.getElementById('new-groomer-name').value='';
+  renderGroomersList();
+  showAlert('settings-alert',name+' added as groomer!','success');
+}
+
+function removeGroomer(name){
+  if(!confirm('Remove groomer "'+name+'"? They will be removed from all dropdowns.'))return;
+  const idx=GROOMERS.indexOf(name);
+  if(idx>-1)GROOMERS.splice(idx,1);
+  appSettings.groomers=[...GROOMERS];
+  saveSettings();
+  updateGroomerDropdowns();
+  renderGroomersList();
+  showAlert('settings-alert',name+' removed','success');
+}
+
+function updateGroomerDropdowns(){
+  ['f-grm1','f-grm2','f-grm3','f-grm4','f-grm5'].forEach((id,i)=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">'+(i===0?'-- Select --':'-- None --')+'</option>';
+    GROOMERS.forEach(g=>{const o=document.createElement('option');o.value=g;o.text=g;sel.appendChild(o);});
+    if(cur&&GROOMERS.includes(cur))sel.value=cur;
+  });
+  // Also update commission and records groomer filters
+  ['rec-groomer','comm-groomer'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="all">All Groomers</option>';
+    GROOMERS.forEach(g=>{const o=document.createElement('option');o.value=g;o.text=g;sel.appendChild(o);});
+    if(cur&&(GROOMERS.includes(cur)||cur==='all'))sel.value=cur;
+  });
+}
 
 // ── OFFERS SYSTEM ─────────────────────────────────────────────────────────────
 function loadOffers(){
