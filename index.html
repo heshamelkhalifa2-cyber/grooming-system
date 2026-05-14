@@ -360,6 +360,16 @@ body.rtl th,body.rtl td{text-align:right}
 
   <!-- DASHBOARD -->
   <div id="sec-dashboard" class="tab-section active">
+    <!-- Live indicator -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="live-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green,#27AE60);animation:pulse 2s infinite"></div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600">Live — Auto-refresh every 60s</span>
+        <span id="last-refresh" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <button onclick="manualRefresh()" style="background:var(--teal-light);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--navy)">🔄 Refresh Now</button>
+    </div>
+    <style>@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}</style>
     <div class="filter-row" style="flex-wrap:wrap;gap:8px">
       <select id="dash-year" onchange="onDashYearChange()" style="min-width:100px;margin-bottom:0"></select>
       <select id="dash-month" onchange="onDashMonthChange()" style="min-width:130px;margin-bottom:0"><option value="all">All Months</option></select>
@@ -693,6 +703,7 @@ async function doLogin(){
         document.getElementById('view-admin').style.display='block';
         initDropdowns();await loadRecs();renderDashboard();
         updateNotifBadge();
+        startAutoRefresh();
       }else{
         document.getElementById('view-cashier').style.display='block';initCashier();
       }
@@ -1132,18 +1143,53 @@ function renderDashboard(){
     kpi('Free FS / BS',ffs+' / '+fbs,'amber')+kpi('Free Value',((ffs*12.5)+(fbs*8.5)).toFixed(3)+' KD','');
   const alrai=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+(r.total||0),0);
   const alq=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+(r.total||0),0);
+  const alraiCharged=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+(r.charged||0),0);
+  const alqCharged=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+(r.charged||0),0);
   const alraiCount=recs.filter(r=>r.branch==='AlRai').length;
   const alqCount=recs.filter(r=>r.branch==='Aswaq AlQurain').length;
+  const alraiPets=recs.filter(r=>r.branch==='AlRai').reduce((s,r)=>s+getPets(r),0);
+  const alqPets=recs.filter(r=>r.branch==='Aswaq AlQurain').reduce((s,r)=>s+getPets(r),0);
+  const totalBranch=alrai+alq||1;
+  const alraiPct=Math.round(alrai/totalBranch*100);
+  const alqPct=100-alraiPct;
   const visits=recs.filter(r=>r.visit_type==='Visit'||!r.visit_type).length;
   const deliveries=recs.filter(r=>r.visit_type==='Delivery').length;
   const visitRev=recs.filter(r=>r.visit_type==='Visit'||!r.visit_type).reduce((s,r)=>s+(r.total||0),0);
   const delivRev=recs.filter(r=>r.visit_type==='Delivery').reduce((s,r)=>s+(r.total||0),0);
+
   document.getElementById('dash-branches').innerHTML=
-    row('AlRai <span style="font-size:11px;color:var(--muted)">('+alraiCount+' sessions)</span>','<span style="font-weight:800;color:var(--teal-dark)">'+alrai.toFixed(3)+' KD</span>')+
-    row('Aswaq AlQurain <span style="font-size:11px;color:var(--muted)">('+alqCount+' sessions)</span>','<span style="font-weight:800;color:var(--blue)">'+alq.toFixed(3)+' KD</span>')+
-    '<div style="border-top:1px solid var(--border);margin:8px 0"></div>'+
-    row('🚶 Visits <span style="font-size:11px;color:var(--muted)">('+visits+')</span>','<span style="font-weight:700;color:var(--teal-dark)">'+visitRev.toFixed(3)+' KD</span>')+
-    row('🚗 Delivery <span style="font-size:11px;color:var(--muted)">('+deliveries+')</span>','<span style="font-weight:700;color:var(--blue)">'+delivRev.toFixed(3)+' KD</span>');
+    // Side by side comparison
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
+    // AlRai card
+    +'<div style="background:linear-gradient(135deg,var(--teal-light),#fff);border:2px solid var(--teal);border-radius:12px;padding:14px;text-align:center">'
+    +'<div style="font-size:11px;font-weight:800;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">🏪 AlRai</div>'
+    +'<div style="font-size:20px;font-weight:800;color:var(--teal-dark)">'+alrai.toFixed(3)+'<span style="font-size:12px"> KD</span></div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:4px">'+alraiCount+' sessions · '+alraiPets+' pets</div>'
+    +'<div style="font-size:11px;color:var(--muted)">Charged: '+alraiCharged.toFixed(3)+' KD</div>'
+    +'<div style="background:var(--border);border-radius:20px;height:6px;margin-top:8px;overflow:hidden">'
+    +'<div style="background:var(--teal);height:100%;width:'+alraiPct+'%;border-radius:20px;transition:width 0.5s"></div></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--teal-dark);margin-top:4px">'+alraiPct+'% of total</div>'
+    +'</div>'
+    // AlQurain card
+    +'<div style="background:linear-gradient(135deg,#EBF5FB,#fff);border:2px solid var(--blue);border-radius:12px;padding:14px;text-align:center">'
+    +'<div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">🏪 AlQurain</div>'
+    +'<div style="font-size:20px;font-weight:800;color:var(--blue)">'+alq.toFixed(3)+'<span style="font-size:12px"> KD</span></div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:4px">'+alqCount+' sessions · '+alqPets+' pets</div>'
+    +'<div style="font-size:11px;color:var(--muted)">Charged: '+alqCharged.toFixed(3)+' KD</div>'
+    +'<div style="background:var(--border);border-radius:20px;height:6px;margin-top:8px;overflow:hidden">'
+    +'<div style="background:var(--blue);height:100%;width:'+alqPct+'%;border-radius:20px;transition:width 0.5s"></div></div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--blue);margin-top:4px">'+alqPct+'% of total</div>'
+    +'</div></div>'
+    // Performance score
+    +'<div style="background:var(--navy);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-size:12px;font-weight:700">🏆 Leading Branch</span>'
+    +'<span style="font-size:13px;font-weight:800;color:#F39C12">'+(alrai>=alq?'AlRai 🏪':'AlQurain 🏪')+'</span>'
+    +'</div>'
+    // Visit types
+    +'<div style="border-top:1px solid var(--border);padding-top:8px">'
+    +row('🚶 Visits <span style="font-size:11px;color:var(--muted)">('+visits+')</span>','<span style="font-weight:700;color:var(--teal-dark)">'+visitRev.toFixed(3)+' KD</span>')
+    +row('🚗 Delivery <span style="font-size:11px;color:var(--muted)">('+deliveries+')</span>','<span style="font-weight:700;color:var(--blue)">'+delivRev.toFixed(3)+' KD</span>')
+    +'</div>';
   const grmData=GROOMERS.map(g=>{
     const gr=recs.filter(r=>grmArr(r).includes(g));
     const gRev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
@@ -1626,6 +1672,31 @@ function switchTab(tab){
 })();
 
 // ── KUWAIT CLOCK ──────────────────────────────────────────────────────────────
+// ── AUTO REFRESH DASHBOARD ────────────────────────────────────────────────────
+let _refreshInterval=null;
+
+async function manualRefresh(){
+  const dot=document.getElementById('live-dot');
+  if(dot)dot.style.background='#F39C12';
+  await loadRecs();
+  renderDashboard();
+  const lastEl=document.getElementById('last-refresh');
+  if(lastEl)lastEl.textContent='· Updated '+( window._kwTime||'');
+  if(dot)setTimeout(()=>{dot.style.background='#27AE60';},500);
+}
+
+function startAutoRefresh(){
+  if(_refreshInterval)clearInterval(_refreshInterval);
+  _refreshInterval=setInterval(async()=>{
+    if(CU&&CU.role==='admin'){
+      const tab=document.getElementById('sec-dashboard');
+      if(tab&&tab.classList.contains('active')){
+        await manualRefresh();
+      }
+    }
+  },60000);
+}
+
 function updateClock(){
   const now=new Date();
   const kwMs=now.getTime()+(3*60*60*1000);
