@@ -346,8 +346,11 @@ body.rtl th,body.rtl td{text-align:right}
   <!-- DASHBOARD -->
   <div id="sec-dashboard" class="tab-section active">
     <div class="filter-row" style="flex-wrap:wrap;gap:8px">
-      <select id="dash-year" onchange="renderDashboard()" style="min-width:100px;margin-bottom:0"></select>
-      <select id="dash-month" onchange="renderDashboard()" style="min-width:130px;margin-bottom:0"><option value="all">All Months</option></select>
+      <select id="dash-year" onchange="onDashYearChange()" style="min-width:100px;margin-bottom:0"></select>
+      <select id="dash-month" onchange="onDashMonthChange()" style="min-width:130px;margin-bottom:0"><option value="all">All Months</option></select>
+      <select id="dash-day" onchange="renderDashboard()" style="min-width:130px;margin-bottom:0"><option value="all">All Days</option></select>
+      <input type="date" id="dash-date" onchange="onDashDatePick()" title="Quick Date Filter" style="min-width:150px;margin-bottom:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;background:#fff;color:var(--text);cursor:pointer">
+      <button onclick="clearDashDate()" style="background:#FADBD8;color:#922B21;border:none;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" title="Clear date filter">✕ Clear Date</button>
       <select id="dash-branch" onchange="renderDashboard()" style="min-width:150px;margin-bottom:0">
         <option value="all">All Branches</option>
         <option value="AlRai">AlRai</option>
@@ -408,6 +411,10 @@ body.rtl th,body.rtl td{text-align:right}
       <select id="comm-groomer" onchange="renderCommissions()" style="margin-bottom:0">
         <option value="all">All Groomers</option>
       </select>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button onclick="exportCommissionsCSV()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬇️ Export CSV</button>
+        <button onclick="sendCommissionReport()" style="background:rgba(45,122,79,0.15);border:1px solid rgba(45,122,79,0.3);color:var(--teal-dark);border-radius:9px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📧 Email Report</button>
+      </div>
     </div>
     <div id="comm-content"></div>
   </div>
@@ -945,6 +952,34 @@ function populateDayDropdown(){
 function onDashYearChange(){populateDayDropdown();renderDashboard();}
 function onDashMonthChange(){populateDayDropdown();renderDashboard();}
 
+function onDashDatePick(){
+  const dateVal=document.getElementById('dash-date').value;
+  if(!dateVal)return;
+  // Extract year, month, day from date and set dropdowns
+  const d=new Date(dateVal);
+  const y=d.getFullYear();
+  const m=MONTHS[d.getMonth()];
+  // Set year
+  const ySel=document.getElementById('dash-year');
+  if(ySel)ySel.value=String(y);
+  // Set month
+  const mSel=document.getElementById('dash-month');
+  if(mSel)mSel.value=m;
+  // Populate days then set day
+  populateDayDropdown();
+  const dSel=document.getElementById('dash-day');
+  if(dSel)dSel.value=dateVal;
+  renderDashboard();
+}
+
+function clearDashDate(){
+  const dateEl=document.getElementById('dash-date');
+  if(dateEl)dateEl.value='';
+  const dSel=document.getElementById('dash-day');
+  if(dSel)dSel.value='all';
+  renderDashboard();
+}
+
 function initDropdowns(){
   const curYear=new Date().getFullYear();
   // Year selectors for all tabs
@@ -1356,26 +1391,125 @@ async function deleteUser(id,username){
 }
 
 // ── EXPORT CSV ────────────────────────────────────────────────────────────────
+function exportCommissionsCSV(){
+  const month=document.getElementById('comm-month').value;
+  const year=document.getElementById('comm-year')?document.getElementById('comm-year').value:String(new Date().getFullYear());
+  const week=document.getElementById('comm-week')?document.getElementById('comm-week').value:'all';
+  const selGroomer=document.getElementById('comm-groomer')?document.getElementById('comm-groomer').value:'all';
+  let recs=allRecs.filter(r=>{
+    const mOk=r.month&&r.month.toLowerCase()===month.toLowerCase();
+    const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
+    const wOk=week==='all'||r.week===week;
+    return mOk&&yOk&&wOk;
+  });
+  const groomersToExport=selGroomer==='all'?GROOMERS:[selGroomer];
+  const hdrs=['Groomer','Date','Branch','Client','Phone','Services','Pets','Charged(KD)','My Share(KD)','Commission(KD)','Sharing With','Week'];
+  const rows=[];
+  groomersToExport.forEach(g=>{
+    const gr=recs.filter(r=>grmArr(r).includes(g));
+    gr.forEach(r=>{
+      const myShare=(r.charged||0)/Math.max(1,grmArr(r).length);
+      const myComm=myShare*COMM;
+      const others=grmArr(r).filter(x=>x!==g).join('|');
+      const svcs=r.services&&r.services.length?r.services.map(s=>s.service+'x'+s.qty).join('|'):(r.service||'');
+      rows.push([g,r.date||'',r.branch||'',r.client_name||'',r.phone||'',svcs,getPets(r),
+        (r.charged||0).toFixed(3),myShare.toFixed(3),myComm.toFixed(3),others||'Solo',r.week||'']);
+    });
+    // Groomer subtotal
+    const gRev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
+    rows.push([g+' TOTAL','','','','','',gr.reduce((s,r)=>s+getPets(r),0),'',gRev.toFixed(3),(gRev*COMM).toFixed(3),'','']);
+    rows.push([]);
+  });
+  const q='"',nl=String.fromCharCode(13,10);
+  const csv=[hdrs,...rows].map(row=>row.map(v=>q+String(v||'').replace(/"/g,q+q)+q).join(',')).join(nl);
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='PetPoint_Commissions_'+month+'_'+year+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function sendCommissionReport(){
+  const month=document.getElementById('comm-month').value;
+  const year=document.getElementById('comm-year')?document.getElementById('comm-year').value:String(new Date().getFullYear());
+  const week=document.getElementById('comm-week')?document.getElementById('comm-week').value:'all';
+  const selGroomer=document.getElementById('comm-groomer')?document.getElementById('comm-groomer').value:'all';
+  let recs=allRecs.filter(r=>{
+    const mOk=r.month&&r.month.toLowerCase()===month.toLowerCase();
+    const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
+    const wOk=week==='all'||r.week===week;
+    return mOk&&yOk&&wOk;
+  });
+  const groomersToShow=selGroomer==='all'?GROOMERS:[selGroomer];
+  const totalComm=recs.reduce((s,r)=>s+(r.charged||0),0)*COMM;
+  let body='PET POINT GROOMING — COMMISSION REPORT%0A';
+  body+='Period: '+month+' '+year+(week!=='all'?' | '+week:'')+'%0A';
+  body+='Generated: '+(window._kwTime||'')+' Kuwait Time%0A';
+  body+='━━━━━━━━━━━━━━━━━━━━━━━━%0A%0A';
+  groomersToShow.forEach(g=>{
+    const gr=recs.filter(r=>grmArr(r).includes(g));
+    if(!gr.length)return;
+    const gRev=gr.reduce((s,r)=>s+(r.charged||0)/Math.max(1,grmArr(r).length),0);
+    const gPets=gr.reduce((s,r)=>s+getPets(r),0);
+    body+=g+'%0A';
+    body+='Sessions: '+gr.length+' | Pets: '+gPets+' | Revenue: '+gRev.toFixed(3)+' KD%0A';
+    body+='Commission: '+(gRev*COMM).toFixed(3)+' KD%0A%0A';
+  });
+  body+='━━━━━━━━━━━━━━━━━━━━━━━━%0A';
+  body+='TOTAL COMMISSION: '+totalComm.toFixed(3)+' KD%0A';
+  body+='Pet Point Grooming | Hesham El-Khalifa';
+  const subject='Pet Point Commission Report — '+month+' '+year;
+  window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(subject)+'&body='+body,'_blank');
+}
+
 function exportCSV(){
   if(!allRecs.length){alert('No data to export!');return;}
   const month=document.getElementById('dash-month').value;
   const year=document.getElementById('dash-year')?document.getElementById('dash-year').value:'all';
-  const recs=filterRecs(month,'all',year);
-  const hdrs=['Date','Month','Week','Branch','Client','Phone','Groomers','Services','Pets','Revenue(KD)','Free','Charged(KD)','Discount%','Discount(KD)','Visit','Notes','By'];
+  const day=document.getElementById('dash-day')?document.getElementById('dash-day').value:'all';
+  const branch=document.getElementById('dash-branch')?document.getElementById('dash-branch').value:'all';
+  const visitType=document.getElementById('dash-visit')?document.getElementById('dash-visit').value:'all';
+  const recs=filterRecs(month,branch,year,visitType,day);
+  
+  // Build rows with commission per groomer
+  const hdrs=['Date','Month','Week','Branch','Client','Phone','Groomers','Services','Pets',
+    'Revenue(KD)','Free','Charged(KD)','Discount%','Discount(KD)','Delivery(KD)',
+    'Commission(KD)','Commission Per Groomer(KD)','Visit','Offer','Notes','By'];
+  
   const rows=recs.map(r=>{
-    const gr=grmArr(r).join('|');
-    const sv=r.services&&r.services.length?r.services.map(s=>s.service+'x'+s.qty).join('|'):(r.service||'');
+    const groomers=grmArr(r);
+    const gr=groomers.join('|');
+    const sv=r.services&&r.services.length?r.services.map(s=>s.service+'x'+s.qty+(s.pet_name?'('+s.pet_name+')':'')).join('|'):(r.service||'');
     const pts=getPets(r);
-    return[r.date||'',r.month||'',r.week||'',r.branch||'',r.client_name||'',r.phone||'',gr,sv,pts,
-      (r.total||0).toFixed(3),(r.free_units||0),(r.charged||0).toFixed(3),
-      (r.discount_pct||0),(r.discount_amt||0).toFixed(3),r.visit_type||'',r.notes||'',r.recorded_by||''];
+    const charged=r.charged||0;
+    const totalComm=charged*COMM;
+    const commPerGroomer=groomers.length>1?(totalComm/groomers.length).toFixed(3):totalComm.toFixed(3);
+    return[
+      r.date||'',r.month||'',r.week||'',r.branch||'',
+      r.client_name||'',r.phone||'',gr,sv,pts,
+      (r.total||0).toFixed(3),(r.free_units||0),charged.toFixed(3),
+      (r.discount_pct||0),(r.discount_amt||0).toFixed(3),(r.delivery_charge||0).toFixed(3),
+      totalComm.toFixed(3),commPerGroomer,
+      r.visit_type||'',r.offer_name||'',r.notes||'',r.recorded_by||''
+    ];
   });
+  
+  // Summary rows at bottom
+  const totalRev=recs.reduce((s,r)=>s+(r.total||0),0);
+  const totalCharged=recs.reduce((s,r)=>s+(r.charged||0),0);
+  const totalComm=totalCharged*COMM;
+  const summaryRow=['','','','TOTAL','','','','',recs.reduce((s,r)=>s+getPets(r),0),
+    totalRev.toFixed(3),'',totalCharged.toFixed(3),'','','',totalComm.toFixed(3),'','','','',''];
+
   const q='"',nl=String.fromCharCode(13,10);
-  const csv=[hdrs,...rows].map(function(row){return row.map(function(v){return q+String(v).replace(/"/g,q+q)+q;}).join(',');}).join(nl);
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const allRows=[hdrs,...rows,[''],summaryRow];
+  const csv=allRows.map(function(row){return row.map(function(v){return q+String(v).replace(/"/g,q+q)+q;}).join(',');}).join(nl);
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='PetPoint_'+month+'_'+new Date().toISOString().split('T')[0]+'.csv';
+  const label=day!=='all'?day:month!=='all'?month:'All';
+  a.href=url;a.download='PetPoint_'+label+'_'+new Date().toISOString().split('T')[0]+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
