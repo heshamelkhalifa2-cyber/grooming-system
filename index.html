@@ -916,6 +916,35 @@ async function saveSession(){
 }
 
 // ── ADMIN HELPERS ─────────────────────────────────────────────────────────────
+function populateDayDropdown(){
+  const year=document.getElementById('dash-year')?document.getElementById('dash-year').value:'all';
+  const month=document.getElementById('dash-month')?document.getElementById('dash-month').value:'all';
+  const sel=document.getElementById('dash-day');
+  if(!sel)return;
+  sel.innerHTML='<option value="all">All Days</option>';
+  if(month==='all'||year==='all')return;
+  // Get unique dates from records for selected month/year
+  const monthIdx=MONTHS.indexOf(month);
+  if(monthIdx<0)return;
+  const daysInMonth=new Date(parseInt(year),monthIdx+1,0).getDate();
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=year+'-'+String(monthIdx+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const hasRecs=allRecs.some(r=>r.date===dateStr);
+    if(hasRecs){
+      const o=document.createElement('option');
+      o.value=dateStr;
+      o.text=d+' '+month.slice(0,3);
+      sel.appendChild(o);
+    }
+  }
+  // Auto-select today if available
+  const todayStr=window._kwDate||new Date().toISOString().split('T')[0];
+  if([...sel.options].some(o=>o.value===todayStr))sel.value=todayStr;
+}
+
+function onDashYearChange(){populateDayDropdown();renderDashboard();}
+function onDashMonthChange(){populateDayDropdown();renderDashboard();}
+
 function initDropdowns(){
   const curYear=new Date().getFullYear();
   // Year selectors for all tabs
@@ -957,21 +986,17 @@ function grmArr(r){
   try{return JSON.parse(r.groomers);}catch(e){return[r.groomers];}
 }
 
-function filterRecs(month,branch,year,visitType){
-  if(year===undefined){
-    const ySel=document.getElementById('dash-year');
-    year=ySel?ySel.value:'all';
-  }
-  if(visitType===undefined){
-    const vSel=document.getElementById('dash-visit');
-    visitType=vSel?vSel.value:'all';
-  }
+function filterRecs(month,branch,year,visitType,day){
+  if(year===undefined){const ySel=document.getElementById('dash-year');year=ySel?ySel.value:'all';}
+  if(visitType===undefined){const vSel=document.getElementById('dash-visit');visitType=vSel?vSel.value:'all';}
+  if(day===undefined){const dSel=document.getElementById('dash-day');day=dSel?dSel.value:'all';}
   return allRecs.filter(r=>{
     const mOk=!month||month==='all'||(r.month&&r.month.toLowerCase()===month.toLowerCase());
     const bOk=!branch||branch==='all'||r.branch===branch;
     const yOk=!year||year==='all'||!r.date||(new Date(r.date).getFullYear()===parseInt(year));
     const vOk=!visitType||visitType==='all'||r.visit_type===visitType;
-    return mOk&&bOk&&yOk&&vOk;
+    const dOk=!day||day==='all'||r.date===day;
+    return mOk&&bOk&&yOk&&vOk&&dOk;
   });
 }
 
@@ -986,7 +1011,8 @@ function renderDashboard(){
   const year=document.getElementById('dash-year')?document.getElementById('dash-year').value:'all';
   const branch=document.getElementById('dash-branch')?document.getElementById('dash-branch').value:'all';
   const visitType=document.getElementById('dash-visit')?document.getElementById('dash-visit').value:'all';
-  const recs=filterRecs(month,branch,year,visitType);
+  const day=document.getElementById('dash-day')?document.getElementById('dash-day').value:'all';
+  const recs=filterRecs(month,branch,year,visitType,day);
   const rev=recs.reduce((s,r)=>s+(r.total||0),0);
   const paid=recs.reduce((s,r)=>s+(r.charged||0),0);
   const pets=recs.reduce((s,r)=>s+getPets(r),0);
@@ -2022,8 +2048,10 @@ document.addEventListener('click',function(e){
 
 // ── DAILY REPORT EMAIL ────────────────────────────────────────────────────────
 function sendDailyReport(){
-  const today=new Date().toISOString().split('T')[0];
-  const todayRecs=allRecs.filter(r=>r.date===today);
+  const daySel=document.getElementById('dash-day');
+  const today=daySel&&daySel.value!=='all'?daySel.value:(window._kwDate||new Date().toISOString().split('T')[0]);
+  const branch=document.getElementById('dash-branch')?document.getElementById('dash-branch').value:'all';
+  const todayRecs=allRecs.filter(r=>r.date===today&&(branch==='all'||r.branch===branch));
   const totalRev=todayRecs.reduce((s,r)=>s+(r.total||0),0);
   const totalCharged=todayRecs.reduce((s,r)=>s+(r.charged||0),0);
   const totalPets=todayRecs.reduce((s,r)=>s+getPets(r),0);
@@ -2044,7 +2072,8 @@ function sendDailyReport(){
     return g+': '+getPets({services:gr.flatMap(r=>r.services||[])})+' pets, Comm: '+( rev*COMM).toFixed(3)+' KD';
   }).filter(Boolean).join('%0A');
 
-  const subject='Pet Point Daily Report — '+today;
+  const branchLabel=branch==='all'?'All Branches':branch;
+  const subject='Pet Point Daily Report — '+today+(branch!=='all'?' ('+branchLabel+')':'');
   const body='PET POINT GROOMING — DAILY REPORT%0A'
     +'Date: '+today+'%0A'
     +'Generated: '+(window._kwTime||'')+' (Kuwait Time)%0A'
