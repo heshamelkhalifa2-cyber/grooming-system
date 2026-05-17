@@ -1831,7 +1831,7 @@ let cashierRecs=[];
 
 async function loadCashierRecords(){
   if(!CU)return;
-  const {data}=await sb.from('records').select('date,services,service,qty,charged,total,groomers,visit_type,client_name,phone,created_at,recorded_time,branch').eq('recorded_by',CU.username).order('created_at',{ascending:false});
+  const {data}=await sb.from('records').select('date,services,service,qty,charged,total,groomers,visit_type,client_name,phone,created_at,recorded_time,branch,session_status,id').eq('recorded_by',CU.username).order('created_at',{ascending:false});
   cashierRecs=data||[];
 }
 
@@ -1884,15 +1884,28 @@ function renderCashierRecords(){
       h=h%12;if(h===0)h=12;
       return h+':'+m+' '+ampm;
     })();
-    return'<div class="card" style="margin-bottom:10px">'
+        const statusMap={
+      'in_progress':{label:'🟡 In Progress',bg:'#FFF9C4',color:'#8B6914',border:'#F39C12'},
+      'ready_pickup':{label:'📦 Ready for Pickup',bg:'#D4E6F1',color:'#1A5276',border:'#2471A3'},
+      'completed':{label:'🟢 Completed',bg:'#D5F0E0',color:'#1B5C38',border:'#2D7A4F'},
+    };
+    const st=statusMap[r.session_status||'in_progress']||statusMap['in_progress'];
+    return'<div class="card" style="margin-bottom:10px;border-left:4px solid '+st.border+'">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
-      +'<div><div style="font-weight:800;font-size:14px">'+r.date+(kwTime?' &nbsp;<span style="font-size:11px;color:var(--muted);font-weight:400">⏰ '+kwTime+' (KWT)</span>':'')+'</div>'
+      +'<div><div style="font-weight:800;font-size:14px">'+r.date+(kwTime?' &nbsp;<span style="font-size:11px;color:var(--muted);font-weight:400">'+kwTime+'</span>':'')+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+(r.branch||'')+'&nbsp;·&nbsp;'+(r.visit_type||'Visit')+'</div></div>'
       +'<div style="text-align:right"><div style="font-size:16px;font-weight:800;color:var(--teal-dark)">'+(r.charged||0).toFixed(3)+' KD</div></div>'
       +'</div>'
-      +(r.client_name||r.phone?'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">👤 '+(r.client_name||'')+' '+(r.phone?' &nbsp;📱 '+r.phone:'')+'</div>':'')
+      +(r.client_name||r.phone?'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">👤 '+(r.client_name||'')+' '+(r.phone?' 📱 '+r.phone:'')+'</div>':'')
       +'<div style="font-size:12px;color:var(--navy);margin-bottom:6px;font-weight:600">✂️ '+groomers+'</div>'
-      +'<div style="font-size:12px;color:var(--muted);line-height:2">'+svcs+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);line-height:2;margin-bottom:10px">'+svcs+'</div>'
+      +'<div style="border-top:1px solid var(--border);padding-top:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+      +'<span style="background:'+st.bg+';color:'+st.color+';border:1px solid '+st.border+';border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700">'+st.label+'</span>'
+      +'<div style="display:flex;gap:6px">'
+      +(r.session_status!=='in_progress'?'<button data-rid="'+r.id+'" data-status="in_progress" class="sr-btn" style="background:#FFF9C4;color:#8B6914;border:1px solid #F39C12;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🟡 In Progress</button>':'')
+      +(r.session_status!=='ready_pickup'?'<button data-rid="'+r.id+'" data-status="ready_pickup" class="sr-btn" style="background:#D4E6F1;color:#1A5276;border:1px solid #2471A3;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📦 Ready</button>':'')
+      +(r.session_status!=='completed'?'<button data-rid="'+r.id+'" data-status="completed" class="sr-btn" style="background:#D5F0E0;color:#1B5C38;border:1px solid #2D7A4F;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🟢 Done</button>':'')
+      +'</div></div>'
       +'</div>';
   }).join('');
   el.innerHTML=printBtn+cards;
