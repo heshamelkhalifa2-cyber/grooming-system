@@ -310,6 +310,12 @@ body.rtl th,body.rtl td{text-align:right}
       </div>
       <div id="offer-applied-msg" style="font-size:12px;margin-top:6px;display:none"></div>
     </div>
+    <label>Session Status</label>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button type="button" class="status-pick active" id="sp-progress" onclick="setSessionStatus('in_progress')" style="flex:1;padding:10px;border-radius:9px;border:2px solid #F39C12;background:#FFF9C4;color:#8B6914;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s">🟡 In Progress</button>
+      <button type="button" class="status-pick" id="sp-ready" onclick="setSessionStatus('ready_pickup')" style="flex:1;padding:10px;border-radius:9px;border:2px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s">📦 Ready for Pickup</button>
+      <button type="button" class="status-pick" id="sp-done" onclick="setSessionStatus('completed')" style="flex:1;padding:10px;border-radius:9px;border:2px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s">🟢 Completed</button>
+    </div>
     <label>Notes (optional)</label>
     <textarea id="f-notes" placeholder="Any notes..."></textarea>
     <button class="btn btn-primary" onclick="saveSession()">💾 Save Session</button>
@@ -354,6 +360,7 @@ body.rtl th,body.rtl td{text-align:right}
     <button class="tab" onclick="switchTab('records')" id="tab-records">📋 Records</button>
     <button class="tab" onclick="switchTab('commissions')" id="tab-commissions">💸 Commissions</button>
     <button class="tab" onclick="switchTab('clients')" id="tab-clients">👥 Clients</button>
+    <button class="tab" onclick="switchTab('bookings')" id="tab-bookings">📅 Bookings</button>
     <button class="tab" onclick="switchTab('users')" id="tab-users">👥 Users</button>
     <button class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Settings</button>
   </div>
@@ -451,6 +458,67 @@ body.rtl th,body.rtl td{text-align:right}
   <div id="sec-clients" class="tab-section">
     <input id="client-search" placeholder="🔍 Search by phone or name..." oninput="renderClients()" style="margin-bottom:12px">
     <div id="clients-content"></div>
+  </div>
+
+  <!-- BOOKINGS -->
+  <div id="sec-bookings" class="tab-section">
+
+    <!-- Daily Capacity Card -->
+    <div class="card">
+      <div class="card-title">👥 Set Daily Groomer Availability</div>
+      <div id="bookings-alert" class="alert"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
+        <div>
+          <label>Branch</label>
+          <select id="cap-branch" class="form-input-dark-bk" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;margin-bottom:0">
+            <option value="AlRai">AlRai</option>
+            <option value="Aswaq AlQurain">Aswaq AlQurain</option>
+          </select>
+        </div>
+        <div>
+          <label>Date</label>
+          <input type="date" id="cap-date" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;margin-bottom:0">
+        </div>
+        <div>
+          <label>Groomers Available</label>
+          <input type="number" id="cap-count" min="1" max="10" value="5" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;font-family:inherit;margin-bottom:0">
+        </div>
+        <button onclick="saveCapacity()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;height:42px;white-space:nowrap">💾 Save</button>
+      </div>
+      <div id="capacity-status" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
+    </div>
+
+    <!-- Booking Link -->
+    <div class="card" style="background:linear-gradient(135deg,var(--teal-light),#fff);border:2px solid var(--teal)">
+      <div class="card-title">🔗 Booking Link for Clients</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;background:#fff;border:1.5px solid var(--border);border-radius:9px;padding:10px 14px;font-size:13px;font-family:monospace;color:var(--navy);word-break:break-all" id="booking-link-display"></div>
+        <button onclick="copyBookingLink()" style="background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">📋 Copy Link</button>
+        <button onclick="openBookingPage()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">🔗 Open</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px">Share this link with clients so they can book their grooming appointment online.</div>
+    </div>
+
+    <!-- Bookings List -->
+    <div class="card">
+      <div class="card-title">📅 Upcoming Bookings</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <input type="date" id="bk-date" onchange="renderBookings()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:0">
+        <select id="bk-branch" onchange="renderBookings()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:0">
+          <option value="all">All Branches</option>
+          <option value="AlRai">AlRai</option>
+          <option value="Aswaq AlQurain">Aswaq AlQurain</option>
+        </select>
+        <select id="bk-status" onchange="renderBookings()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;margin-bottom:0">
+          <option value="all">All Status</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="completed">Completed</option>
+        </select>
+        <button onclick="loadBookings()" style="background:var(--teal);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Refresh</button>
+      </div>
+      <div class="table-wrap" id="bookings-table"></div>
+    </div>
   </div>
 
   <!-- USERS -->
@@ -936,7 +1004,8 @@ async function saveSession(){
     recorded_by:CU.username,
     recorded_time:kwTime_save,
     offer_name:appliedOffer?appliedOffer.name:null,
-    offer_discount:appliedOffer?offerDiscAmt2:0};
+    offer_discount:appliedOffer?offerDiscAmt2:0,
+    session_status:window._sessionStatus||'in_progress'};
   if(discPct>0){rec.discount_pct=discPct*100;rec.discount_amt=discAmt;}
   if(delivCharge>0){rec.delivery_charge=delivCharge;}
   const {error}=await sb.from('records').insert([rec]);
@@ -954,6 +1023,8 @@ async function saveSession(){
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
   appliedOffer=null;
+  window._sessionStatus='in_progress';
+  setSessionStatus('in_progress');
   const omsg=document.getElementById('offer-applied-msg');
   if(omsg)omsg.style.display='none';
   const ocodeEl=document.getElementById('f-offer-code');
@@ -1644,6 +1715,7 @@ function switchTab(tab){
   if(tab==='records')renderRecords();
   else if(tab==='commissions')renderCommissions();
   else if(tab==='clients')renderClients();
+  else if(tab==='bookings'){initBookingsTab();loadBookings();}
   else if(tab==='users')renderUsers();
   else if(tab==='settings')renderSettings();
   else renderDashboard();
@@ -1824,6 +1896,12 @@ function renderCashierRecords(){
       +'</div>';
   }).join('');
   el.innerHTML=printBtn+cards;
+  // Attach status button events
+  el.querySelectorAll('.sr-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      updateSessionStatus(this.dataset.rid, this.dataset.status);
+    });
+  });
 }
 
 function printCashierRecords(){
@@ -2457,7 +2535,148 @@ function sendDailyReport(){
   window.open(gmailUrl,'_blank');
 }
 
+
+// ── SESSION STATUS ─────────────────────────────────────────────────────────────
+window._sessionStatus = 'in_progress';
+
+function setSessionStatus(status){
+  window._sessionStatus = status;
+  const styles = {
+    'in_progress': { id:'sp-progress', border:'#F39C12', bg:'#FFF9C4', color:'#8B6914' },
+    'ready_pickup': { id:'sp-ready', border:'#2471A3', bg:'#D4E6F1', color:'#1A5276' },
+    'completed': { id:'sp-done', border:'var(--teal)', bg:'#D5F0E0', color:'#1B5C38' },
+  };
+  ['sp-progress','sp-ready','sp-done'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(!btn)return;
+    btn.style.border='2px solid var(--border)';
+    btn.style.background='#fff';
+    btn.style.color='var(--muted)';
+  });
+  const s=styles[status];
+  if(s){
+    const btn=document.getElementById(s.id);
+    if(btn){btn.style.border='2px solid '+s.border;btn.style.background=s.bg;btn.style.color=s.color;}
+  }
+}
+
+async function updateSessionStatus(id, newStatus){
+  const {error}=await sb.from('records').update({session_status:newStatus}).eq('id',id);
+  if(error){alert('Error: '+error.message);return;}
+  await loadCashierRecords();
+  renderCashierRecords();
+}
+
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ── BOOKINGS SYSTEM ───────────────────────────────────────────────────────────
+function initBookingsTab(){
+  // Set today as default
+  const today=window._kwDate||new Date().toISOString().split('T')[0];
+  const capDate=document.getElementById('cap-date');
+  const bkDate=document.getElementById('bk-date');
+  if(capDate&&!capDate.value)capDate.value=today;
+  if(bkDate&&!bkDate.value)bkDate.value=today;
+  // Set booking link
+  const linkEl=document.getElementById('booking-link-display');
+  if(linkEl)linkEl.textContent=window.location.origin+'/booking.html';
+  // Load today's capacity
+  loadCapacityStatus();
+}
+
+async function saveCapacity(){
+  const branch=document.getElementById('cap-branch').value;
+  const date=document.getElementById('cap-date').value;
+  const count=parseInt(document.getElementById('cap-count').value)||1;
+  if(!date){showAlert('bookings-alert','Please select a date','error');return;}
+  const {error}=await sb.from('daily_capacity').upsert([{
+    branch,date,groomers_count:count,created_by:CU.username
+  }],{onConflict:'branch,date'});
+  if(error){showAlert('bookings-alert','Error: '+error.message,'error');return;}
+  showAlert('bookings-alert','✅ Capacity saved! '+count+' groomers available for '+branch+' on '+date,'success');
+  loadCapacityStatus();
+}
+
+async function loadCapacityStatus(){
+  const today=window._kwDate||new Date().toISOString().split('T')[0];
+  const {data}=await sb.from('daily_capacity').select('*').gte('date',today).order('date');
+  const el=document.getElementById('capacity-status');
+  if(!el)return;
+  if(!data||!data.length){el.textContent='No capacity set for upcoming days.';return;}
+  el.innerHTML='<b>Upcoming capacity:</b> '+data.map(d=>'<span style="background:var(--teal-light);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:11px;margin-left:6px">'+d.branch+' · '+d.date+' · <b>'+d.groomers_count+'</b> groomers</span>').join('');
+}
+
+async function loadBookings(){
+  const date=document.getElementById('bk-date')?document.getElementById('bk-date').value:'';
+  const branch=document.getElementById('bk-branch')?document.getElementById('bk-branch').value:'all';
+  const status=document.getElementById('bk-status')?document.getElementById('bk-status').value:'all';
+  let q=sb.from('bookings').select('*').order('date').order('time_slot');
+  if(date)q=q.eq('date',date);
+  if(branch!=='all')q=q.eq('branch',branch);
+  if(status!=='all')q=q.eq('status',status);
+  const {data}=await q;
+  renderBookings(data||[]);
+}
+
+function renderBookings(data){
+  const el=document.getElementById('bookings-table');if(!el)return;
+  if(!data||!data.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon" style="font-size:36px">📅</div>No bookings found</div>';return;
+  }
+  const statusColor={confirmed:'badge-green',cancelled:'badge-red',completed:'badge-blue'};
+  el.innerHTML='<table><thead><tr><th>Date</th><th>Time</th><th>Branch</th><th>Client</th><th>Phone</th><th>Service</th><th>Status</th><th>Action</th></tr></thead><tbody>'
+    +data.map(b=>'<tr>'
+      +'<td style="font-weight:700">'+b.date+'</td>'
+      +'<td><span style="background:var(--teal-light);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700">'+b.time_slot+'</span></td>'
+      +'<td style="font-size:12px">'+b.branch+'</td>'
+      +'<td style="font-weight:600">'+b.client_name+'</td>'
+      +'<td style="font-size:12px;color:var(--muted)">'+b.client_phone+'</td>'
+      +'<td style="font-size:12px">'+b.service+'</td>'
+      +'<td><span class="badge '+(statusColor[b.status]||'badge-gray')+'">'+b.status+'</span></td>'
+      +'<td style="display:flex;gap:4px">'
+      +'<button data-id="'+b.id+'" data-action="completed" class="bk-action-btn" style="background:rgba(45,122,79,0.15);color:var(--teal-dark);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✅</button>'
+      +'<button data-id="'+b.id+'" data-action="cancelled" class="bk-action-btn" style="background:#FADBD8;color:#922B21;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✕</button>'
+      +'<button data-phone="'+b.client_phone+'" data-name="'+b.client_name+'" data-date="'+b.date+'" data-time="'+b.time_slot+'" data-branch="'+b.branch+'" class="bk-wa-btn" style="background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📲</button>'
+      +'</td></tr>').join('')+'</tbody></table>';
+  // Attach events
+  el.querySelectorAll('.bk-action-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){updateBookingStatus(this.dataset.id,this.dataset.action);});
+  });
+  el.querySelectorAll('.bk-wa-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){sendBookingWhatsApp(this.dataset.phone,this.dataset.name,this.dataset.date,this.dataset.time,this.dataset.branch);});
+  });
+}
+
+async function updateBookingStatus(id,status){
+  await sb.from('bookings').update({status}).eq('id',id);
+  loadBookings();
+}
+
+function copyBookingLink(){
+  const link=window.location.origin+'/booking.html';
+  navigator.clipboard.writeText(link).then(()=>alert('Link copied: '+link));
+}
+
+function openBookingPage(){
+  window.open(window.location.origin+'/booking.html','_blank');
+}
+
+function sendBookingWhatsApp(phone,name,date,time,branch){
+  let p=phone.replace(/[^0-9]/g,'');
+  if(!p.startsWith('965'))p='965'+p;
+  const nl='%0A';
+  const msg='%F0%9F%90%BE *Pet Point Grooming*'+nl+nl
+    +'Booking Reminder!'+nl+nl
+    +'Dear '+encodeURIComponent(name)+','+nl
+    +'Your grooming appointment is confirmed:'+nl+nl
+    +'Branch: '+encodeURIComponent(branch)+nl
+    +'Date: '+date+nl
+    +'Time: '+encodeURIComponent(time)+nl+nl
+    +'Please arrive 5 minutes early.'+nl
+    +'See you soon!'+nl+nl
+    +'Your Pet'+"%27"+'s Happy Place';
+  window.open('https://wa.me/'+p+'?text='+msg,'_blank');
+}
 
 // ── WHATSAPP THANK YOU ────────────────────────────────────────────────────────
 let _waPhone='', _waName='', _waAmount='';
