@@ -318,6 +318,12 @@ body.rtl th,body.rtl td{text-align:right}
     </div>
     <label>Notes (optional)</label>
     <textarea id="f-notes" placeholder="Any notes..."></textarea>
+    <label>Payment Method / طريقة الدفع</label>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button type="button" id="pay-cash" onclick="setPayMethod('cash')" class="pay-btn active" style="flex:1;padding:10px;border-radius:9px;border:2px solid var(--teal);background:var(--teal-light);color:var(--teal-dark);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s">💵 Cash / نقدي</button>
+      <button type="button" id="pay-knet" onclick="setPayMethod('knet')" class="pay-btn" style="flex:1;padding:10px;border-radius:9px;border:2px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s">💳 KNET</button>
+      <button type="button" id="pay-credit" onclick="setPayMethod('credit')" class="pay-btn" style="flex:1;padding:10px;border-radius:9px;border:2px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s">🏦 Credit Card</button>
+    </div>
     <button class="btn btn-primary" onclick="saveSession()">💾 Save Session</button>
   </div>
   <div class="copyright">© 2026 <b>Pet Point</b> — Grooming Management System<br>Designed &amp; Developed by <b>Hesham El-Khalifa</b> | All rights reserved</div>
@@ -1005,7 +1011,8 @@ async function saveSession(){
     recorded_time:kwTime_save,
     offer_name:appliedOffer?appliedOffer.name:null,
     offer_discount:appliedOffer?offerDiscAmt2:0,
-    session_status:window._sessionStatus||'in_progress'};
+    session_status:window._sessionStatus||'in_progress',
+    payment_method:window._payMethod||'cash'};
   if(discPct>0){rec.discount_pct=discPct*100;rec.discount_amt=discAmt;}
   if(delivCharge>0){rec.delivery_charge=delivCharge;}
   const {error}=await sb.from('records').insert([rec]);
@@ -1037,7 +1044,8 @@ async function saveSession(){
     notes:document.getElementById('f-notes').value,
     offerName:appliedOffer?appliedOffer.name:null,
     recordedTime:kwTime_save,
-    recordedBy:CU.name||CU.username
+    recordedBy:CU.name||CU.username,
+    paymentMethod:window._payMethod||'cash'
   });
   document.getElementById('f-phone').value='';
   document.getElementById('f-cname').value='';
@@ -1045,6 +1053,8 @@ async function saveSession(){
   appliedOffer=null;
   window._sessionStatus='in_progress';
   setSessionStatus('in_progress');
+  window._payMethod='cash';
+  setPayMethod('cash');
   const omsg=document.getElementById('offer-applied-msg');
   if(omsg)omsg.style.display='none';
   const ocodeEl=document.getElementById('f-offer-code');
@@ -2569,6 +2579,30 @@ function sendDailyReport(){
 }
 
 
+// ── PAYMENT METHOD ────────────────────────────────────────────────────────────
+window._payMethod = 'cash';
+
+function setPayMethod(method){
+  window._payMethod = method;
+  const styles = {
+    'cash':  { id:'pay-cash',   border:'var(--teal)', bg:'var(--teal-light)', color:'var(--teal-dark)' },
+    'knet':  { id:'pay-knet',   border:'#2471A3',     bg:'#D4E6F1',           color:'#1A5276' },
+    'credit':{ id:'pay-credit', border:'#7D3C98',     bg:'#E8DAEF',           color:'#6C3483' },
+  };
+  ['pay-cash','pay-knet','pay-credit'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(!btn)return;
+    btn.style.border='2px solid var(--border)';
+    btn.style.background='#fff';
+    btn.style.color='var(--muted)';
+  });
+  const s=styles[method];
+  if(s){
+    const btn=document.getElementById(s.id);
+    if(btn){btn.style.border='2px solid '+s.border;btn.style.background=s.bg;btn.style.color=s.color;}
+  }
+}
+
 // ── SESSION STATUS ─────────────────────────────────────────────────────────────
 window._sessionStatus = 'in_progress';
 
@@ -2725,10 +2759,20 @@ function printInvoice(data){
 
 <div class="divider"></div>
 
-<div style="padding:8px 16px;background:#f0f7f2;text-align:center">
-  <div style="font-size:11px;color:#1D9E75;font-weight:700">💵 Cash Payment / دفع نقدي</div>
+`+
+  (()=>{
+    const pm=data.paymentMethod||'cash';
+    const payLabels={
+      cash:  {icon:'💵', en:'Cash Payment',   ar:'دفع نقدي',   color:'#1D9E75'},
+      knet:  {icon:'💳', en:'KNET Payment',   ar:'دفع KNET',   color:'#2471A3'},
+      credit:{icon:'🏦', en:'Credit Card',    ar:'بطاقة ائتمان',color:'#7D3C98'},
+    };
+    const pl=payLabels[pm]||payLabels.cash;
+    return `<div style="padding:8px 16px;background:#f0f7f2;text-align:center">
+  <div style="font-size:12px;font-weight:800;color:`+pl.color+`">`+pl.icon+` `+pl.en+` / `+pl.ar+`</div>
   <div style="font-size:10px;color:#5D7A69;margin-top:2px">Recorded by: ${recordedBy}</div>
-</div>
+</div>`;
+  })()+`
 
 ${notes?`<div style="padding:8px 16px;font-size:11px;color:#5D7A69;border-top:1px solid #c8e6d0"><b>Notes / ملاحظات:</b> ${notes}</div>`:''}
 
