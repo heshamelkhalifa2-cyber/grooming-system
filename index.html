@@ -1019,6 +1019,26 @@ async function saveSession(){
   if(phone){
     showWhatsAppBtn(phone, cname, finalCharged2.toFixed(3));
   }
+  // Auto print invoice
+  printInvoice({
+    date,branch,
+    groomers,
+    phone,
+    cname,
+    services:svcsData,
+    totalPets,
+    totRev,
+    totFree,
+    discPct:Math.min(100,parseFloat(document.getElementById('f-discount').value)||0),
+    discAmt:offerDiscAmt2+(totCharged*(Math.min(100,parseFloat(document.getElementById('f-discount').value)||0)/100)),
+    delivCharge:delivCharge,
+    finalCharged:finalCharged2,
+    visitType:document.getElementById('f-visit').value,
+    notes:document.getElementById('f-notes').value,
+    offerName:appliedOffer?appliedOffer.name:null,
+    recordedTime:kwTime_save,
+    recordedBy:CU.name||CU.username
+  });
   document.getElementById('f-phone').value='';
   document.getElementById('f-cname').value='';
   document.getElementById('f-notes').value='';
@@ -2578,6 +2598,156 @@ async function updateSessionStatus(id, newStatus){
   if(error){alert('Error: '+error.message);return;}
   await loadCashierRecords();
   renderCashierRecords();
+}
+
+
+// ── INVOICE / RECEIPT ──────────────────────────────────────────────────────────
+function printInvoice(data){
+  const {date,branch,groomers,phone,cname,services,totalPets,totRev,totFree,discPct,discAmt,delivCharge,finalCharged,visitType,notes,offerName,recordedTime,recordedBy}=data;
+  const groomersStr=Array.isArray(groomers)?groomers.join(', '):groomers;
+  const invoiceNum='PP'+Date.now().toString().slice(-6);
+  const kwDate=window._kwDate||date;
+
+  const svcsRows=services.map(s=>{
+    const freeLabel=s.free_units>0?'<span style="color:#1D9E75;font-size:10px"> (incl. '+s.free_units+' free)</span>':'';
+    const petName=s.pet_name?'<div style="font-size:10px;color:#666;margin-top:2px">🐾 '+s.pet_name+(s.vaccinated?' · 💉 Vaccinated':' · ⚠️ Not Vaccinated')+'</div>':'';
+    return '<tr>'
+      +'<td style="padding:8px 6px;border-bottom:1px solid #e8f5ee;font-size:12px">'+s.service+freeLabel+petName+'</td>'
+      +'<td style="padding:8px 6px;border-bottom:1px solid #e8f5ee;text-align:center;font-size:12px">'+s.qty+'</td>'
+      +'<td style="padding:8px 6px;border-bottom:1px solid #e8f5ee;text-align:right;font-size:12px">'+(s.price||0).toFixed(3)+'</td>'
+      +'<td style="padding:8px 6px;border-bottom:1px solid #e8f5ee;text-align:right;font-size:12px;font-weight:700;color:#1D9E75">'+(s.charged||0).toFixed(3)+' KD</td>'
+      +'</tr>';
+  }).join('');
+
+  const w=window.open('','_blank','width=420,height=700');
+  w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Pet Point Invoice - ${invoiceNum}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1A2E22; width: 380px; margin: 0 auto; padding: 0; }
+  .inv-header { background: #0A1F15; color: #fff; padding: 20px 18px 16px; text-align: center; }
+  .inv-logo { font-size: 32px; margin-bottom: 4px; }
+  .inv-brand { font-size: 18px; font-weight: 800; letter-spacing: 1px; color: #5DCAA5; }
+  .inv-tagline { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .inv-num { background: rgba(93,202,165,0.15); border: 1px solid rgba(93,202,165,0.3); border-radius: 6px; display: inline-block; padding: 4px 14px; font-size: 11px; color: #5DCAA5; margin-top: 10px; font-weight: 700; letter-spacing: 1px; }
+  .inv-meta { padding: 12px 16px; background: #f0f7f2; border-bottom: 1px solid #c8e6d0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .meta-item { font-size: 11px; }
+  .meta-label { color: #5D7A69; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
+  .meta-val { color: #1A2E22; font-weight: 700; font-size: 12px; }
+  .meta-full { grid-column: 1/-1; }
+  .inv-section { padding: 10px 16px 0; }
+  .section-title { font-size: 10px; font-weight: 700; color: #5D7A69; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 10px; color: #5D7A69; font-weight: 700; text-transform: uppercase; padding: 6px; background: #f0f7f2; border-bottom: 2px solid #c8e6d0; }
+  .totals { padding: 10px 16px; }
+  .total-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #5D7A69; }
+  .total-row.final { font-size: 15px; font-weight: 800; color: #1A2E22; border-top: 2px solid #c8e6d0; padding-top: 8px; margin-top: 4px; }
+  .total-row.final span:last-child { color: #1D9E75; }
+  .inv-footer { background: #0A1F15; color: rgba(255,255,255,0.5); text-align: center; padding: 12px 16px; font-size: 10px; line-height: 1.8; }
+  .inv-footer b { color: #5DCAA5; }
+  .ar { direction: rtl; text-align: right; }
+  .divider { height: 1px; background: #c8e6d0; margin: 8px 16px; }
+  .free-badge { background: #D5F0E0; color: #1B5C38; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+  @media print {
+    body { width: 100%; }
+    .no-print { display: none !important; }
+    button { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="inv-header">
+  <div class="inv-logo">🐾</div>
+  <div class="inv-brand">PET POINT GROOMING</div>
+  <div class="inv-tagline">Your Pet's Happy Place — Where Every Pet is in Safe Hands</div>
+  <div class="inv-num">INVOICE # ${invoiceNum}</div>
+</div>
+
+<div class="inv-meta">
+  <div class="meta-item">
+    <div class="meta-label">Date / التاريخ</div>
+    <div class="meta-val">${kwDate}</div>
+  </div>
+  <div class="meta-item">
+    <div class="meta-label">Time / الوقت</div>
+    <div class="meta-val">${recordedTime||''} KWT</div>
+  </div>
+  <div class="meta-item">
+    <div class="meta-label">Branch / الفرع</div>
+    <div class="meta-val">${branch}</div>
+  </div>
+  <div class="meta-item">
+    <div class="meta-label">Type / النوع</div>
+    <div class="meta-val">${visitType||'Visit'}</div>
+  </div>
+  ${cname||phone?`<div class="meta-item meta-full">
+    <div class="meta-label">Client / العميل</div>
+    <div class="meta-val">${cname||''} ${phone?'· '+phone:''}</div>
+  </div>`:''}
+  <div class="meta-item meta-full">
+    <div class="meta-label">Groomer(s) / الجرومر</div>
+    <div class="meta-val">${groomersStr}</div>
+  </div>
+</div>
+
+<div class="inv-section">
+  <div class="section-title">✂️ Services / الخدمات</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:left">Service</th>
+        <th style="text-align:center">Qty</th>
+        <th style="text-align:right">Price</th>
+        <th style="text-align:right">Charged</th>
+      </tr>
+    </thead>
+    <tbody>${svcsRows}</tbody>
+  </table>
+</div>
+
+<div class="divider"></div>
+
+<div class="totals">
+  <div class="total-row"><span>Subtotal / الإجمالي</span><span>${(totRev||0).toFixed(3)} KD</span></div>
+  ${totFree>0?`<div class="total-row"><span>Free Units / وحدات مجانية 🎁</span><span class="free-badge">${totFree} units</span></div>`:''}
+  ${discAmt>0?`<div class="total-row"><span>Discount / خصم (${discPct}%)</span><span style="color:#E07A5F">- ${(discAmt||0).toFixed(3)} KD</span></div>`:''}
+  ${offerName?`<div class="total-row"><span>Offer / عرض: ${offerName}</span><span style="color:#E07A5F">Applied ✓</span></div>`:''}
+  ${delivCharge>0?`<div class="total-row"><span>Delivery / توصيل 🚗</span><span>+ ${(delivCharge||0).toFixed(3)} KD</span></div>`:''}
+  <div class="total-row final">
+    <span>Total / الإجمالي المدفوع</span>
+    <span>${(finalCharged||0).toFixed(3)} KD</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div style="padding:8px 16px;background:#f0f7f2;text-align:center">
+  <div style="font-size:11px;color:#1D9E75;font-weight:700">💵 Cash Payment / دفع نقدي</div>
+  <div style="font-size:10px;color:#5D7A69;margin-top:2px">Recorded by: ${recordedBy}</div>
+</div>
+
+${notes?`<div style="padding:8px 16px;font-size:11px;color:#5D7A69;border-top:1px solid #c8e6d0"><b>Notes / ملاحظات:</b> ${notes}</div>`:''}
+
+<div class="inv-footer">
+  <b>Pet Point Grooming</b><br>
+  شكراً لزيارتكم · Thank you for your visit 🐾<br>
+  نتطلع لرؤيتكم مجدداً · See you again soon!<br><br>
+  <span style="font-size:9px">Designed by Hesham El-Khalifa · © 2026 Pet Point</span>
+</div>
+
+<div class="no-print" style="text-align:center;padding:14px;background:#fff;border-top:1px solid #c8e6d0">
+  <button onclick="window.print()" style="background:#0A1F15;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;margin-right:8px">🖨️ Print</button>
+  <button onclick="window.close()" style="background:#f0f7f2;color:#1A2E22;border:1px solid #c8e6d0;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer">✕ Close</button>
+</div>
+
+</body>
+</html>`);
+  w.document.close();
+  setTimeout(()=>{try{w.focus();}catch(e){}},300);
 }
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
